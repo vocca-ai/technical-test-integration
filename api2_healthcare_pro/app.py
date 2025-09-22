@@ -7,6 +7,7 @@ Inclut un endpoint HL7 simulé
 """
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
 import jwt
@@ -14,6 +15,7 @@ import json
 from functools import wraps
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Configuration JWT
 JWT_SECRET = "healthcare_pro_secret_key_2024"

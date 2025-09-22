@@ -6,11 +6,13 @@ Format: JSON simple et direct
 """
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
 import json
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Configuration
 API_KEY = "medscheduler_key_12345"
