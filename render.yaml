@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: medscheduler-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd api1_medscheduler && python app.py
+    plan: free
+
+  - type: web
+    name: healthcare-pro-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd api2_healthcare_pro && python app.py
+    plan: free
+
+  - type: web
+    name: api-documentation
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd docs_app && python app.py
+    plan: free

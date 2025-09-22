@@ -1,0 +1,276 @@
+{% extends "base.html" %} {% block title %}{{ api_name }} - Documentation{%
+endblock %} {% block extra_head %}
+<!-- Swagger UI CSS -->
+<link
+  rel="stylesheet"
+  type="text/css"
+  href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css"
+/>
+<style>
+  .swagger-ui .topbar {
+    display: none;
+  }
+
+  .swagger-ui .info {
+    margin: 20px 0;
+  }
+
+  .swagger-ui .info .title {
+    color: #3b82f6;
+  }
+
+  .swagger-ui .scheme-container {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+  }
+
+  .swagger-ui .btn.authorize {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+  }
+
+  .swagger-ui .btn.authorize:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+
+  .swagger-ui .opblock.opblock-get .opblock-summary-method {
+    background: #10b981;
+  }
+
+  .swagger-ui .opblock.opblock-post .opblock-summary-method {
+    background: #3b82f6;
+  }
+
+  .swagger-ui .opblock.opblock-put .opblock-summary-method {
+    background: #f59e0b;
+  }
+
+  .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+    background: #ef4444;
+  }
+
+  #swagger-ui {
+    max-width: none;
+  }
+
+  .api-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+  }
+
+  .back-button {
+    transition: all 0.3s ease;
+  }
+
+  .back-button:hover {
+    transform: translateX(-5px);
+  }
+</style>
+{% endblock %} {% block content %}
+<!-- API Header -->
+<div class="api-header">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <a
+          href="/"
+          class="back-button inline-flex items-center text-white hover:text-gray-200 mb-4 transition-colors"
+        >
+          <i class="fas fa-arrow-left mr-2"></i>
+          Retour à l'accueil
+        </a>
+        <h1 class="text-3xl md:text-4xl font-bold mb-2">{{ api_name }}</h1>
+        <p class="text-lg text-gray-200">{{ api_description }}</p>
+      </div>
+      <div class="hidden md:block">
+        <div class="flex items-center space-x-4">
+          {% if 'MedScheduler' in api_name %}
+          <div class="text-center">
+            <div class="text-2xl font-bold">5001</div>
+            <div class="text-sm text-gray-200">Port</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold">API Key</div>
+            <div class="text-sm text-gray-200">Auth</div>
+          </div>
+          {% else %}
+          <div class="text-center">
+            <div class="text-2xl font-bold">5002</div>
+            <div class="text-sm text-gray-200">Port</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold">JWT</div>
+            <div class="text-sm text-gray-200">Auth</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Info Cards -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-8">
+  <div class="grid md:grid-cols-3 gap-4">
+    {% if 'MedScheduler' in api_name %}
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-key text-2xl text-blue-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Authentification</h3>
+      <p class="text-sm text-gray-600">API Key dans le header X-API-Key</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >medscheduler_key_12345</code
+      >
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-server text-2xl text-green-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Base URL</h3>
+      <p class="text-sm text-gray-600">Serveur de développement</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >http://localhost:5001</code
+      >
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-code text-2xl text-purple-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Format</h3>
+      <p class="text-sm text-gray-600">JSON simple et direct</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >application/json</code
+      >
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-shield-alt text-2xl text-blue-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Authentification</h3>
+      <p class="text-sm text-gray-600">JWT Bearer Token</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >Authorization: Bearer &lt;token&gt;</code
+      >
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-hospital text-2xl text-green-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Standards</h3>
+      <p class="text-sm text-gray-600">FHIR R4 + HL7 v2.4</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >FHIR Bundle Resources</code
+      >
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 text-center">
+      <i class="fas fa-server text-2xl text-purple-600 mb-2"></i>
+      <h3 class="font-semibold text-gray-900">Base URL</h3>
+      <p class="text-sm text-gray-600">Serveur de développement</p>
+      <code class="text-xs bg-gray-100 px-2 py-1 rounded mt-1 block"
+        >http://localhost:5002</code
+      >
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Swagger UI Container -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+  <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div id="swagger-ui"></div>
+  </div>
+</div>
+
+<!-- Loading Indicator -->
+<div
+  id="loading-indicator"
+  class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16"
+>
+  <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+    <div
+      class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+    ></div>
+    <p class="text-gray-600">Chargement de la documentation...</p>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<!-- Swagger UI Bundle -->
+<script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+<script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const swaggerContainer = document.getElementById("swagger-ui");
+
+    // Initialize Swagger UI
+    const ui = SwaggerUIBundle({
+      url: "{{ spec_url }}",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+      layout: "StandaloneLayout",
+      validatorUrl: null,
+      tryItOutEnabled: true,
+      requestInterceptor: function (request) {
+        // Add custom headers or modify requests here if needed
+        return request;
+      },
+      responseInterceptor: function (response) {
+        // Handle responses here if needed
+        return response;
+      },
+      onComplete: function () {
+        // Hide loading indicator when Swagger UI is loaded
+        loadingIndicator.style.display = "none";
+        swaggerContainer.style.display = "block";
+
+        // Add custom styling after load
+        setTimeout(function () {
+          // Customize the authorize button
+          const authorizeBtn = document.querySelector(".btn.authorize");
+          if (authorizeBtn) {
+            authorizeBtn.innerHTML =
+              '<i class="fas fa-lock mr-2"></i>' + authorizeBtn.innerHTML;
+          }
+
+          // Add icons to method types
+          document
+            .querySelectorAll(".opblock-summary-method")
+            .forEach(function (method) {
+              const methodText = method.textContent.toUpperCase();
+              let icon = "";
+              switch (methodText) {
+                case "GET":
+                  icon = '<i class="fas fa-eye mr-1"></i>';
+                  break;
+                case "POST":
+                  icon = '<i class="fas fa-plus mr-1"></i>';
+                  break;
+                case "PUT":
+                  icon = '<i class="fas fa-edit mr-1"></i>';
+                  break;
+                case "DELETE":
+                  icon = '<i class="fas fa-trash mr-1"></i>';
+                  break;
+              }
+              method.innerHTML = icon + methodText;
+            });
+        }, 1000);
+      },
+      onFailure: function (error) {
+        console.error("Failed to load Swagger spec:", error);
+        loadingIndicator.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                    <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-red-800 mb-2">Erreur de chargement</h3>
+                    <p class="text-red-600">Impossible de charger la spécification OpenAPI.</p>
+                    <p class="text-sm text-red-500 mt-2">Vérifiez que l'API est démarrée et accessible.</p>
+                </div>
+            `;
+      },
+    });
+
+    // Initially hide swagger container
+    swaggerContainer.style.display = "none";
+  });
+</script>
+{% endblock %}

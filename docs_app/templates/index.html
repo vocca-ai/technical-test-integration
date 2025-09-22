@@ -1,0 +1,282 @@
+{% extends "base.html" %} {% block title %}Accueil - Documentation APIs{%
+endblock %} {% block content %}
+<!-- Hero Section -->
+<div class="gradient-bg">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <div class="text-center">
+      <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">
+        <i class="fas fa-code mb-4 block"></i>
+        Documentation APIs
+      </h1>
+      <p class="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto">
+        Explorez nos APIs médicales avec des documentations interactives Swagger
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <a
+          href="/medscheduler"
+          class="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 transition-colors"
+        >
+          <i class="fas fa-calendar-alt mr-2"></i>
+          MedScheduler API
+        </a>
+        <a
+          href="/healthcare-pro"
+          class="inline-flex items-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-indigo-600 transition-colors"
+        >
+          <i class="fas fa-hospital mr-2"></i>
+          HealthCare Pro API
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APIs Overview -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+  <div class="text-center mb-16">
+    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+      Nos APIs Médicales
+    </h2>
+    <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+      Deux solutions complémentaires pour vos besoins en gestion de données de
+      santé
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-8">
+    <!-- MedScheduler API Card -->
+    <div class="bg-white rounded-xl shadow-lg p-8 card-hover">
+      <div class="flex items-center mb-6">
+        <div class="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
+          <i class="fas fa-calendar-alt text-2xl"></i>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-gray-900">MedScheduler API</h3>
+          <p class="text-gray-600">API Simple & Directe</p>
+        </div>
+      </div>
+
+      <p class="text-gray-700 mb-6">
+        Solution simple et efficace pour la gestion des rendez-vous médicaux et
+        des patients. Format JSON direct avec authentification par clé API.
+      </p>
+
+      <div class="space-y-3 mb-6">
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-key mr-2 text-green-500"></i>
+          Authentification par API Key
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-users mr-2 text-green-500"></i>
+          Gestion des patients
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-clock mr-2 text-green-500"></i>
+          Gestion des rendez-vous
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-code mr-2 text-green-500"></i>
+          Format JSON simple
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-6">
+        <span
+          class="api-badge text-white px-3 py-1 rounded-full text-xs font-medium"
+        >
+          REST API
+        </span>
+        <span
+          class="tech-badge text-white px-3 py-1 rounded-full text-xs font-medium"
+        >
+          JSON
+        </span>
+        <span
+          class="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-xs font-medium"
+        >
+          API Key Auth
+        </span>
+      </div>
+
+      <a
+        href="/medscheduler"
+        class="inline-flex items-center w-full justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+      >
+        <i class="fas fa-book mr-2"></i>
+        Voir la Documentation
+      </a>
+    </div>
+
+    <!-- HealthCare Pro API Card -->
+    <div class="bg-white rounded-xl shadow-lg p-8 card-hover">
+      <div class="flex items-center mb-6">
+        <div class="p-3 rounded-lg bg-purple-100 text-purple-600 mr-4">
+          <i class="fas fa-hospital text-2xl"></i>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-gray-900">HealthCare Pro API</h3>
+          <p class="text-gray-600">API Avancée & Standards</p>
+        </div>
+      </div>
+
+      <p class="text-gray-700 mb-6">
+        API professionnelle avec support des standards FHIR R4 et HL7 v2.4.
+        Authentification JWT/OAuth pour une sécurité renforcée.
+      </p>
+
+      <div class="space-y-3 mb-6">
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-shield-alt mr-2 text-green-500"></i>
+          Authentification JWT/OAuth
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-hospital-user mr-2 text-green-500"></i>
+          Format FHIR R4
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-exchange-alt mr-2 text-green-500"></i>
+          Messages HL7 ADT
+        </div>
+        <div class="flex items-center text-sm text-gray-600">
+          <i class="fas fa-cogs mr-2 text-green-500"></i>
+          Interopérabilité avancée
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-6">
+        <span
+          class="api-badge text-white px-3 py-1 rounded-full text-xs font-medium"
+        >
+          FHIR R4
+        </span>
+        <span
+          class="tech-badge text-white px-3 py-1 rounded-full text-xs font-medium"
+        >
+          HL7 v2.4
+        </span>
+        <span
+          class="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-xs font-medium"
+        >
+          JWT Auth
+        </span>
+      </div>
+
+      <a
+        href="/healthcare-pro"
+        class="inline-flex items-center w-full justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+      >
+        <i class="fas fa-book mr-2"></i>
+        Voir la Documentation
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Features Section -->
+<div class="bg-gray-100 py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl font-bold text-gray-900 mb-4">
+        Pourquoi choisir nos APIs ?
+      </h2>
+      <p class="text-lg text-gray-600">
+        Des solutions conçues pour les professionnels de santé
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8">
+      <div class="text-center">
+        <div
+          class="p-4 rounded-full bg-blue-100 w-16 h-16 flex items-center justify-center mx-auto mb-4"
+        >
+          <i class="fas fa-rocket text-2xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">Performance</h3>
+        <p class="text-gray-600">
+          APIs optimisées pour des réponses rapides et fiables
+        </p>
+      </div>
+
+      <div class="text-center">
+        <div
+          class="p-4 rounded-full bg-green-100 w-16 h-16 flex items-center justify-center mx-auto mb-4"
+        >
+          <i class="fas fa-shield-alt text-2xl text-green-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">Sécurité</h3>
+        <p class="text-gray-600">
+          Authentification robuste et protection des données sensibles
+        </p>
+      </div>
+
+      <div class="text-center">
+        <div
+          class="p-4 rounded-full bg-purple-100 w-16 h-16 flex items-center justify-center mx-auto mb-4"
+        >
+          <i class="fas fa-cogs text-2xl text-purple-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">Standards</h3>
+        <p class="text-gray-600">
+          Conformité aux standards FHIR et HL7 pour l'interopérabilité
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Start Section -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+  <div class="text-center mb-12">
+    <h2 class="text-3xl font-bold text-gray-900 mb-4">Démarrage Rapide</h2>
+    <p class="text-lg text-gray-600">
+      Choisissez l'API qui correspond à vos besoins
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">
+        <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+        MedScheduler API
+      </h3>
+      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <code class="text-sm text-gray-800">
+          curl -H "X-API-Key: medscheduler_key_12345" \<br />
+          &nbsp;&nbsp;&nbsp;&nbsp; https://api.medscheduler.com/patients
+        </code>
+      </div>
+      <p class="text-gray-600 mb-4">
+        Parfait pour des intégrations simples et rapides
+      </p>
+      <a
+        href="/medscheduler"
+        class="text-blue-600 hover:text-blue-800 font-medium"
+      >
+        Découvrir l'API →
+      </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h3 class="text-xl font-semibold text-gray-900 mb-4">
+        <i class="fas fa-hospital text-purple-600 mr-2"></i>
+        HealthCare Pro API
+      </h3>
+      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <code class="text-sm text-gray-800">
+          curl -H "Authorization: Bearer &lt;token&gt;" \<br />
+          &nbsp;&nbsp;&nbsp;&nbsp; https://api.healthcare-pro.com/fhir/Patient
+        </code>
+      </div>
+      <p class="text-gray-600 mb-4">
+        Idéal pour les systèmes hospitaliers et les intégrations complexes
+      </p>
+      <a
+        href="/healthcare-pro"
+        class="text-purple-600 hover:text-purple-800 font-medium"
+      >
+        Découvrir l'API →
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
