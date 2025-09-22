@@ -3,20 +3,20 @@ info:
   title: HealthCare Pro API
   description: |
     API avancée pour la gestion des données de santé avec support FHIR R4 et HL7.
-    
+
     ## Authentification
     Cette API utilise l'authentification JWT/OAuth2 avec des tokens Bearer.
-    
+
     ## Standards supportés
     - **FHIR R4** : Format standard pour l'interopérabilité des données de santé
     - **HL7 v2.4** : Messages ADT (Admit, Discharge, Transfer)
-    
+
     ## Fonctionnalités
     - Gestion des patients au format FHIR
     - Gestion des rendez-vous au format FHIR
     - Traitement des messages HL7 ADT
     - Authentification OAuth2/JWT
-    
+
   version: 2.1.0
   contact:
     name: HealthCare Pro Support
@@ -43,7 +43,7 @@ paths:
         - Health
       security: []
       responses:
-        '200':
+        "200":
           description: API opérationnelle
           content:
             application/json:
@@ -96,7 +96,7 @@ paths:
                   type: string
                   default: client_credentials
       responses:
-        '200':
+        "200":
           description: Token généré avec succès
           content:
             application/json:
@@ -116,12 +116,12 @@ paths:
                   scope:
                     type: string
                     example: read:patients write:patients read:appointments write:appointments
-        '401':
+        "401":
           description: Credentials invalides
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /fhir/Patient:
     get:
@@ -132,14 +132,14 @@ paths:
       tags:
         - FHIR Patients
       responses:
-        '200':
+        "200":
           description: Bundle FHIR des patients
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PatientBundle'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: "#/components/schemas/PatientBundle"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
 
   /fhir/Patient/{patient_id}:
     get:
@@ -156,20 +156,20 @@ paths:
             type: string
             example: hcp-patient-001
       responses:
-        '200':
+        "200":
           description: Ressource Patient FHIR
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FHIRPatient'
-        '404':
+                $ref: "#/components/schemas/FHIRPatient"
+        "404":
           description: Patient non trouvé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationOutcome'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: "#/components/schemas/OperationOutcome"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
 
   /fhir/Appointment:
     get:
@@ -189,14 +189,14 @@ paths:
             format: date
             example: 2024-03-22
       responses:
-        '200':
+        "200":
           description: Bundle FHIR des rendez-vous
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppointmentBundle'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: "#/components/schemas/AppointmentBundle"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
 
   /fhir/Appointment/{appointment_id}:
     get:
@@ -213,20 +213,20 @@ paths:
             type: string
             example: hcp-appointment-001
       responses:
-        '200':
+        "200":
           description: Ressource Appointment FHIR
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FHIRAppointment'
-        '404':
+                $ref: "#/components/schemas/FHIRAppointment"
+        "404":
           description: Rendez-vous non trouvé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationOutcome'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: "#/components/schemas/OperationOutcome"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
 
   /hl7/ADT:
     post:
@@ -256,7 +256,7 @@ paths:
                 PID|1||HCP001^^^HCP^MR||Dubois^Pierre^Michel||19781108|M||||||^PRN^PH^^^33^145678901
                 PV1|1|I|ICU^101^1|||^Garcia^Elena^Dr|||||||||||12345|||||||||||||||||||||20240322100000
       responses:
-        '200':
+        "200":
           description: Message traité avec succès - Retourne un ACK HL7
           content:
             application/hl7-v2:
@@ -265,14 +265,14 @@ paths:
                 example: |
                   MSH|^~\&|HEALTHCARE_PRO|HCP_SYSTEM|SENDING_APP|SENDING_FACILITY|20240322143500||ACK|12345|P|2.4
                   MSA|AA|12345|Message accepted and processed successfully
-        '400':
+        "400":
           description: Message HL7 invalide
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
 
   /hl7/sample:
     get:
@@ -282,7 +282,7 @@ paths:
         - HL7 Integration
       security: []
       responses:
-        '200':
+        "200":
           description: Exemple de message HL7 ADT
           content:
             application/hl7-v2:
@@ -310,7 +310,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
 
   schemas:
     Error:
@@ -369,7 +369,7 @@ components:
             type: object
             properties:
               resource:
-                $ref: '#/components/schemas/FHIRPatient'
+                $ref: "#/components/schemas/FHIRPatient"
               search:
                 type: object
                 properties:
@@ -402,7 +402,7 @@ components:
             type: object
             properties:
               resource:
-                $ref: '#/components/schemas/FHIRAppointment'
+                $ref: "#/components/schemas/FHIRAppointment"
               search:
                 type: object
                 properties:
@@ -553,7 +553,19 @@ components:
               example: ["http://healthcare-pro.com/fhir/Appointment"]
         status:
           type: string
-          enum: [proposed, pending, booked, arrived, fulfilled, cancelled, noshow, entered-in-error, checked-in, waitlist]
+          enum:
+            [
+              proposed,
+              pending,
+              booked,
+              arrived,
+              fulfilled,
+              cancelled,
+              noshow,
+              entered-in-error,
+              checked-in,
+              waitlist,
+            ]
           example: booked
         serviceCategory:
           type: array
