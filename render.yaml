@@ -3,19 +3,19 @@ services:
     name: medscheduler-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: cd api1_medscheduler && python app.py
+    startCommand: cd api1_medscheduler && gunicorn --bind 0.0.0.0:$PORT app:app
     plan: free
 
   - type: web
     name: healthcare-pro-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: cd api2_healthcare_pro && python app.py
+    startCommand: cd api2_healthcare_pro && gunicorn --bind 0.0.0.0:$PORT app:app
     plan: free
 
   - type: web
     name: api-documentation
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: cd docs_app && python app.py
+    startCommand: cd docs_app && gunicorn --bind 0.0.0.0:$PORT app:app
     plan: free

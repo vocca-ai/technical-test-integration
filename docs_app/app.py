@@ -76,10 +76,12 @@ def health_check():
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 3000))
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
     print("📚 Documentation App starting...")
     print(f"🌐 Access at: http://localhost:{port}")
+    print(f"🔧 Debug mode: {debug_mode}")
     print("📖 Available endpoints:")
     print("   - / : Page d'accueil")
     print("   - /medscheduler : Documentation MedScheduler API")
     print("   - /healthcare-pro : Documentation HealthCare Pro API")
-    app.run(debug=True, port=port, host='0.0.0.0')
+    app.run(debug=debug_mode, port=port, host='0.0.0.0')
