@@ -212,8 +212,12 @@ endblock %} {% block extra_head %}
       tryItOutEnabled: true,
       supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
       persistAuthorization: false,
-      showExtensions: true,
-      showCommonExtensions: true,
+      showExtensions: false,
+      showCommonExtensions: false,
+      defaultModelsExpandDepth: 1,
+      defaultModelExpandDepth: 1,
+      docExpansion: "list",
+      filter: false,
       requestInterceptor: function (request) {
         // Add custom headers or modify requests here if needed
         return request;

@@ -40,9 +40,7 @@ servers:
     description: Serveur de production
 
 security:
-  - ClientID: []
-    Timestamp: []
-    Signature: []
+  - HMACAuth: []
 
 paths:
   /health:
@@ -360,34 +358,18 @@ paths:
 components:
   securitySchemes:
     HMACAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: "HMAC-SHA256"
-      description: |
-        Authentification HMAC-SHA256. Requiert les headers:
-        - X-Client-ID: medscheduler_client
-        - X-Timestamp: timestamp Unix
-        - X-Signature: signature HMAC-SHA256 en Base64
-
-        Utilisez l'endpoint /auth/signature-helper pour générer les signatures.
-
-    ClientID:
-      type: apiKey
-      in: header
-      name: X-Client-ID
-      description: Identifiant du client
-
-    Timestamp:
-      type: apiKey
-      in: header
-      name: X-Timestamp
-      description: Timestamp Unix de la requête
-
-    Signature:
       type: apiKey
       in: header
       name: X-Signature
-      description: Signature HMAC-SHA256 en Base64
+      description: |
+        Authentification HMAC-SHA256. 
+
+        Headers requis:
+        - X-Client-ID: medscheduler_client
+        - X-Timestamp: timestamp Unix (ex: 1703515200)
+        - X-Signature: signature HMAC calculée
+
+        Utilisez l'endpoint /auth/signature-helper pour générer les signatures.
 
   responses:
     UnauthorizedError:
