@@ -41,7 +41,7 @@ servers:
     description: Serveur de production
 
 security:
-  - OAuth2: []
+  - BearerAuth: []
 
 paths:
   /health:
@@ -129,7 +129,7 @@ paths:
       tags:
         - Authentication
       security:
-        - OAuth2: [write:tokens]
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -172,7 +172,7 @@ paths:
       tags:
         - REST Patients
       security:
-        - OAuth2: [read:patients]
+        - BearerAuth: [read:patients]
       parameters:
         - name: search
           in: query
@@ -206,7 +206,7 @@ paths:
       tags:
         - REST Patients
       security:
-        - OAuth2: [write:patients]
+        - BearerAuth: [write:patients]
       requestBody:
         required: true
         content:
@@ -238,7 +238,7 @@ paths:
       tags:
         - REST Patients
       security:
-        - OAuth2: [read:patients]
+        - BearerAuth: [read:patients]
       parameters:
         - name: patient_id
           in: path
@@ -271,7 +271,7 @@ paths:
       tags:
         - REST Patients
       security:
-        - OAuth2: [write:patients]
+        - BearerAuth: [write:patients]
       parameters:
         - name: patient_id
           in: path
@@ -319,7 +319,7 @@ paths:
       tags:
         - REST Appointments
       security:
-        - OAuth2: [read:appointments]
+        - BearerAuth: [read:appointments]
       parameters:
         - name: date
           in: query
@@ -369,7 +369,7 @@ paths:
       tags:
         - REST Appointments
       security:
-        - OAuth2: [write:appointments]
+        - BearerAuth: [write:appointments]
       requestBody:
         required: true
         content:
@@ -401,7 +401,7 @@ paths:
       tags:
         - REST Appointments
       security:
-        - OAuth2: [read:appointments]
+        - BearerAuth: [read:appointments]
       parameters:
         - name: appointment_id
           in: path
@@ -434,7 +434,7 @@ paths:
       tags:
         - REST Appointments
       security:
-        - OAuth2: [write:appointments]
+        - BearerAuth: [write:appointments]
       parameters:
         - name: appointment_id
           in: path
@@ -479,7 +479,7 @@ paths:
       tags:
         - REST Appointments
       security:
-        - OAuth2: [write:appointments]
+        - BearerAuth: [write:appointments]
       parameters:
         - name: appointment_id
           in: path
@@ -523,7 +523,7 @@ paths:
       tags:
         - HL7 Integration
       security:
-        - OAuth2: [hl7:process]
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -586,26 +586,21 @@ paths:
 
 components:
   securitySchemes:
-    OAuth2:
-      type: oauth2
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
       description: |
-        OAuth 2.0 avec JWT et refresh tokens.
-
+        Token JWT obtenu via l'endpoint /auth/token.
+        
+        Exemple: Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+        
         Scopes disponibles:
         - read:patients: Lecture des patients
         - write:patients: Création/modification des patients
         - read:appointments: Lecture des rendez-vous
         - write:appointments: Gestion des rendez-vous
         - hl7:process: Traitement des messages HL7
-      flows:
-        clientCredentials:
-          tokenUrl: /auth/token
-          scopes:
-            read:patients: Lecture des patients
-            write:patients: Création/modification des patients
-            read:appointments: Lecture des rendez-vous
-            write:appointments: Gestion des rendez-vous
-            hl7:process: Traitement des messages HL7
 
   responses:
     UnauthorizedError:
