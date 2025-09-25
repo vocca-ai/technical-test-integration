@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MedScheduler API - API 1
-Authentification: API Key
+Authentification: HMAC Signature (très sécurisée)
 Format: JSON simple et direct
 """
 
@@ -10,12 +10,18 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import uuid
 import json
+import hmac
+import hashlib
+import base64
+import time
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Configuration
-API_KEY = "medscheduler_key_12345"
+# Configuration HMAC
+CLIENT_ID = "medscheduler_client"
+SECRET_KEY = "medscheduler_secret_key_2024_very_secure"
+SIGNATURE_VALIDITY_SECONDS = 300  # 5 minutes
 
 # Base de données simulée
 appointments = []
@@ -76,13 +82,79 @@ test_appointments = [
 patients.extend(test_patients)
 appointments.extend(test_appointments)
 
-def require_api_key(f):
-    """Décorateur pour vérifier l'API key"""
+def generate_signature(method, path, timestamp, body=""):
+    """Générer une signature HMAC pour la requête"""
+    # Créer la chaîne à signer
+    string_to_sign = f"{method}\n{path}\n{timestamp}\n{body}"
+    
+    # Générer la signature HMAC-SHA256
+    signature = hmac.new(
+        SECRET_KEY.encode('utf-8'),
+        string_to_sign.encode('utf-8'),
+        hashlib.sha256
+    ).digest()
+    
+    # Encoder en base64
+    return base64.b64encode(signature).decode('utf-8')
+
+def require_hmac_auth(f):
+    """Décorateur pour vérifier l'authentification HMAC"""
     def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-Key')
-        if not api_key or api_key != API_KEY:
-            return jsonify({"error": "Invalid or missing API key"}), 401
+        # Récupérer les headers requis
+        client_id = request.headers.get('X-Client-ID')
+        timestamp = request.headers.get('X-Timestamp')
+        signature = request.headers.get('X-Signature')
+        
+        if not all([client_id, timestamp, signature]):
+            return jsonify({
+                "error": "Missing authentication headers",
+                "required": ["X-Client-ID", "X-Timestamp", "X-Signature"]
+            }), 401
+        
+        # Vérifier le client ID
+        if client_id != CLIENT_ID:
+            return jsonify({"error": "Invalid client ID"}), 401
+        
+        # Vérifier que le timestamp est récent (protection contre replay attacks)
+        try:
+            request_time = int(timestamp)
+            current_time = int(time.time())
+            
+            if abs(current_time - request_time) > SIGNATURE_VALIDITY_SECONDS:
+                return jsonify({
+                    "error": "Request timestamp too old or too far in the future",
+                    "max_age_seconds": SIGNATURE_VALIDITY_SECONDS
+                }), 401
+        except ValueError:
+            return jsonify({"error": "Invalid timestamp format"}), 401
+        
+        # Récupérer le body de la requête
+        body = ""
+        if request.method in ['POST', 'PUT', 'PATCH']:
+            body = request.get_data(as_text=True)
+        
+        # Générer la signature attendue
+        expected_signature = generate_signature(
+            request.method,
+            request.path,
+            timestamp,
+            body
+        )
+        
+        # Vérifier la signature (comparaison sécurisée)
+        if not hmac.compare_digest(signature, expected_signature):
+            return jsonify({
+                "error": "Invalid signature",
+                "debug_info": {
+                    "method": request.method,
+                    "path": request.path,
+                    "timestamp": timestamp,
+                    "body_length": len(body)
+                }
+            }), 401
+        
         return f(*args, **kwargs)
+    
     decorated_function.__name__ = f.__name__
     return decorated_function
 
@@ -92,13 +164,40 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "api": "MedScheduler",
-        "version": "1.0.0",
+        "version": "1.1.0",
+        "authentication": "HMAC-SHA256 Signature",
         "timestamp": datetime.utcnow().isoformat() + "Z"
+    })
+
+@app.route('/auth/signature-helper', methods=['POST'])
+def signature_helper():
+    """Endpoint d'aide pour générer une signature (développement uniquement)"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "JSON data required"}), 400
+    
+    method = data.get('method', 'GET').upper()
+    path = data.get('path', '/')
+    body = data.get('body', '')
+    timestamp = data.get('timestamp', str(int(time.time())))
+    
+    signature = generate_signature(method, path, timestamp, body)
+    
+    return jsonify({
+        "signature": signature,
+        "headers": {
+            "X-Client-ID": CLIENT_ID,
+            "X-Timestamp": timestamp,
+            "X-Signature": signature
+        },
+        "string_to_sign": f"{method}\n{path}\n{timestamp}\n{body}",
+        "expires_in": SIGNATURE_VALIDITY_SECONDS
     })
 
 # PATIENTS ENDPOINTS
 @app.route('/patients', methods=['GET'])
-@require_api_key
+@require_hmac_auth
 def get_patients():
     """Récupérer tous les patients"""
     return jsonify({
@@ -107,7 +206,7 @@ def get_patients():
     })
 
 @app.route('/patients/<patient_id>', methods=['GET'])
-@require_api_key
+@require_hmac_auth
 def get_patient(patient_id):
     """Récupérer un patient spécifique"""
     patient = next((p for p in patients if p["id"] == patient_id), None)
@@ -116,7 +215,7 @@ def get_patient(patient_id):
     return jsonify(patient)
 
 @app.route('/patients', methods=['POST'])
-@require_api_key
+@require_hmac_auth
 def create_patient():
     """Créer un nouveau patient"""
     data = request.get_json()
@@ -142,7 +241,7 @@ def create_patient():
 
 # APPOINTMENTS ENDPOINTS
 @app.route('/appointments', methods=['GET'])
-@require_api_key
+@require_hmac_auth
 def get_appointments():
     """Récupérer tous les rendez-vous"""
     # Filtrage optionnel par date
@@ -158,7 +257,7 @@ def get_appointments():
     })
 
 @app.route('/appointments/<appointment_id>', methods=['GET'])
-@require_api_key
+@require_hmac_auth
 def get_appointment(appointment_id):
     """Récupérer un rendez-vous spécifique"""
     appointment = next((a for a in appointments if a["id"] == appointment_id), None)
@@ -167,7 +266,7 @@ def get_appointment(appointment_id):
     return jsonify(appointment)
 
 @app.route('/appointments', methods=['POST'])
-@require_api_key
+@require_hmac_auth
 def create_appointment():
     """Créer un nouveau rendez-vous"""
     data = request.get_json()
@@ -199,7 +298,7 @@ def create_appointment():
     return jsonify(appointment), 201
 
 @app.route('/appointments/<appointment_id>', methods=['PUT'])
-@require_api_key
+@require_hmac_auth
 def update_appointment(appointment_id):
     """Mettre à jour un rendez-vous"""
     appointment = next((a for a in appointments if a["id"] == appointment_id), None)
@@ -222,8 +321,12 @@ if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5001))
     print("🏥 MedScheduler API starting...")
-    print(f"📋 API Key: {API_KEY}")
+    print("🔐 HMAC-SHA256 Authentication enabled")
+    print("📋 Authentication details:")
+    print(f"   Client ID: {CLIENT_ID}")
+    print(f"   Signature validity: {SIGNATURE_VALIDITY_SECONDS} seconds")
     print("📚 Test data loaded:")
     print(f"   - {len(patients)} patients")
     print(f"   - {len(appointments)} appointments")
+    print("🔧 Use /auth/signature-helper to generate signatures")
     app.run(debug=False, port=port, host='0.0.0.0')

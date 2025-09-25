@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-HealthCare Pro API - API 2
+HealthCare Pro API - API 2 (Hybride REST/HL7)
 Authentification: JWT/OAuth
-Format: JSON complexe avec structure FHIR-like
-Inclut un endpoint HL7 simulé
+Format: API REST classique pour patients/rendez-vous + Endpoints HL7 spécialisés
+- REST API: /api/patients, /api/appointments (JSON simple)
+- HL7 API: /hl7/ADT, /hl7/sample (messages HL7)
 """
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
 from datetime import datetime, timedelta
 import uuid
 import jwt
@@ -15,228 +19,113 @@ import json
 from functools import wraps
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+if CORS:
+    CORS(app)  # Enable CORS for all routes
 
-# Configuration JWT
+# Configuration JWT avec refresh tokens
 JWT_SECRET = "healthcare_pro_secret_key_2024"
+JWT_REFRESH_SECRET = "healthcare_pro_refresh_secret_2024"
 JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Token d'accès court
+REFRESH_TOKEN_EXPIRE_DAYS = 7     # Refresh token plus long
+
+# Base de données des refresh tokens (en production, utiliser Redis/DB)
+active_refresh_tokens = set()
 
 # Base de données simulée
 patients_db = []
 appointments_db = []
 
-# Données de test avec format complexe
+# Données de test avec format REST classique
 test_patients_data = [
     {
-        "resourceType": "Patient",
         "id": "hcp-patient-001",
-        "meta": {
-            "versionId": "1",
-            "lastUpdated": "2024-01-15T10:30:00.000Z",
-            "profile": ["http://healthcare-pro.com/fhir/Patient"]
-        },
-        "identifier": [
-            {
-                "use": "usual",
-                "type": {
-                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
-                },
-                "value": "HCP001"
-            }
-        ],
-        "active": True,
-        "name": [
-            {
-                "use": "official",
-                "family": "Dubois",
-                "given": ["Pierre", "Michel"]
-            }
-        ],
-        "telecom": [
-            {"system": "phone", "value": "+33145678901", "use": "home"},
-            {"system": "email", "value": "pierre.dubois@email.com", "use": "home"}
-        ],
+        "patient_number": "HCP001",
+        "first_name": "Pierre",
+        "last_name": "Dubois",
+        "middle_name": "Michel",
+        "email": "pierre.dubois@email.com",
+        "phone": "+33145678901",
         "gender": "male",
-        "birthDate": "1978-11-08",
-        "address": [
-            {
-                "use": "home",
-                "line": ["789 Boulevard de l'Hôpital"],
-                "city": "Marseille",
-                "postalCode": "13001",
-                "country": "FR"
-            }
-        ],
-        "contact": [
-            {
-                "relationship": [
-                    {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0131", "code": "C"}]}
-                ],
-                "name": {"family": "Dubois", "given": ["Marie"]},
-                "telecom": [{"system": "phone", "value": "+33145678902"}]
-            }
-        ]
+        "birth_date": "1978-11-08",
+        "address": {
+            "street": "789 Boulevard de l'Hôpital",
+            "city": "Marseille",
+            "postal_code": "13001",
+            "country": "FR"
+        },
+        "emergency_contact": {
+            "name": "Marie Dubois",
+            "phone": "+33145678902",
+            "relationship": "spouse"
+        },
+        "active": True,
+        "created_at": "2024-01-15T10:30:00.000Z",
+        "updated_at": "2024-01-15T10:30:00.000Z"
     },
     {
-        "resourceType": "Patient", 
         "id": "hcp-patient-002",
-        "meta": {
-            "versionId": "1",
-            "lastUpdated": "2024-01-22T09:15:00.000Z",
-            "profile": ["http://healthcare-pro.com/fhir/Patient"]
-        },
-        "identifier": [
-            {
-                "use": "usual",
-                "type": {
-                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
-                },
-                "value": "HCP002"
-            }
-        ],
-        "active": True,
-        "name": [
-            {
-                "use": "official", 
-                "family": "Leroy",
-                "given": ["Sophie", "Anne"]
-            }
-        ],
-        "telecom": [
-            {"system": "phone", "value": "+33156789012", "use": "mobile"},
-            {"system": "email", "value": "sophie.leroy@email.com", "use": "work"}
-        ],
+        "patient_number": "HCP002",
+        "first_name": "Sophie",
+        "last_name": "Leroy",
+        "middle_name": "Anne",
+        "email": "sophie.leroy@email.com",
+        "phone": "+33156789012",
         "gender": "female",
-        "birthDate": "1990-05-14",
-        "address": [
-            {
-                "use": "home",
-                "line": ["321 Rue des Soins"],
-                "city": "Toulouse", 
-                "postalCode": "31000",
-                "country": "FR"
-            }
-        ]
+        "birth_date": "1990-05-14",
+        "address": {
+            "street": "321 Rue des Soins",
+            "city": "Toulouse",
+            "postal_code": "31000",
+            "country": "FR"
+        },
+        "emergency_contact": None,
+        "active": True,
+        "created_at": "2024-01-22T09:15:00.000Z",
+        "updated_at": "2024-01-22T09:15:00.000Z"
     }
 ]
 
 test_appointments_data = [
     {
-        "resourceType": "Appointment",
         "id": "hcp-appointment-001",
-        "meta": {
-            "versionId": "1", 
-            "lastUpdated": "2024-01-15T11:30:00.000Z",
-            "profile": ["http://healthcare-pro.com/fhir/Appointment"]
-        },
+        "patient_id": "hcp-patient-001",
+        "patient_name": "Pierre Michel Dubois",
+        "doctor_id": "dr-garcia",
+        "doctor_name": "Dr. Elena Garcia",
+        "appointment_type": "routine",
+        "service_category": "General Practice",
+        "service_type": "Consultation",
         "status": "booked",
-        "serviceCategory": [
-            {
-                "coding": [
-                    {"system": "http://terminology.hl7.org/CodeSystem/service-category", "code": "17", "display": "General Practice"}
-                ]
-            }
-        ],
-        "serviceType": [
-            {
-                "coding": [
-                    {"system": "http://snomed.info/sct", "code": "11429006", "display": "Consultation"}
-                ]
-            }
-        ],
-        "appointmentType": {
-            "coding": [
-                {"system": "http://terminology.hl7.org/CodeSystem/v2-0276", "code": "ROUTINE"}
-            ]
-        },
-        "reasonCode": [
-            {
-                "coding": [
-                    {"system": "http://snomed.info/sct", "code": "185349003", "display": "Encounter for check up"}
-                ]
-            }
-        ],
-        "priority": 5,
+        "priority": "normal",
         "description": "Consultation de suivi médical général",
-        "start": "2024-03-22T10:00:00.000Z",
-        "end": "2024-03-22T10:30:00.000Z",
-        "minutesDuration": 30,
-        "participant": [
-            {
-                "actor": {
-                    "reference": "Patient/hcp-patient-001",
-                    "display": "Pierre Michel Dubois"
-                },
-                "required": "required",
-                "status": "accepted"
-            },
-            {
-                "actor": {
-                    "reference": "Practitioner/dr-garcia",
-                    "display": "Dr. Elena Garcia"
-                },
-                "required": "required", 
-                "status": "accepted"
-            }
-        ],
-        "requestedPeriod": [
-            {
-                "start": "2024-03-22T09:00:00.000Z",
-                "end": "2024-03-22T12:00:00.000Z"
-            }
-        ]
+        "start_time": "2024-03-22T10:00:00.000Z",
+        "end_time": "2024-03-22T10:30:00.000Z",
+        "duration_minutes": 30,
+        "reason": "Encounter for check up",
+        "notes": "",
+        "created_at": "2024-01-15T11:30:00.000Z",
+        "updated_at": "2024-01-15T11:30:00.000Z"
     },
     {
-        "resourceType": "Appointment",
         "id": "hcp-appointment-002",
-        "meta": {
-            "versionId": "1",
-            "lastUpdated": "2024-01-22T14:45:00.000Z", 
-            "profile": ["http://healthcare-pro.com/fhir/Appointment"]
-        },
+        "patient_id": "hcp-patient-002",
+        "patient_name": "Sophie Anne Leroy",
+        "doctor_id": "dr-bernard",
+        "doctor_name": "Dr. Thomas Bernard",
+        "appointment_type": "followup",
+        "service_category": "Cardiology",
+        "service_type": "Echocardiography",
         "status": "confirmed",
-        "serviceCategory": [
-            {
-                "coding": [
-                    {"system": "http://terminology.hl7.org/CodeSystem/service-category", "code": "408", "display": "Cardiology"}
-                ]
-            }
-        ],
-        "serviceType": [
-            {
-                "coding": [
-                    {"system": "http://snomed.info/sct", "code": "40701008", "display": "Echocardiography"}
-                ]
-            }
-        ],
-        "appointmentType": {
-            "coding": [
-                {"system": "http://terminology.hl7.org/CodeSystem/v2-0276", "code": "FOLLOWUP"}
-            ]
-        },
-        "priority": 3,
+        "priority": "high",
         "description": "Échocardiographie de contrôle post-opératoire",
-        "start": "2024-03-28T14:15:00.000Z", 
-        "end": "2024-03-28T15:00:00.000Z",
-        "minutesDuration": 45,
-        "participant": [
-            {
-                "actor": {
-                    "reference": "Patient/hcp-patient-002",
-                    "display": "Sophie Anne Leroy"
-                },
-                "required": "required",
-                "status": "accepted"
-            },
-            {
-                "actor": {
-                    "reference": "Practitioner/dr-bernard",
-                    "display": "Dr. Thomas Bernard"
-                },
-                "required": "required",
-                "status": "accepted"
-            }
-        ]
+        "start_time": "2024-03-28T14:15:00.000Z",
+        "end_time": "2024-03-28T15:00:00.000Z",
+        "duration_minutes": 45,
+        "reason": "Post-operative follow-up",
+        "notes": "Post-surgical cardiac monitoring",
+        "created_at": "2024-01-22T14:45:00.000Z",
+        "updated_at": "2024-01-22T14:45:00.000Z"
     }
 ]
 
@@ -244,158 +133,525 @@ test_appointments_data = [
 patients_db.extend(test_patients_data)
 appointments_db.extend(test_appointments_data)
 
-def generate_jwt_token(user_id="healthcare_user"):
-    """Générer un token JWT"""
-    payload = {
-        'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(hours=24),
-        'iat': datetime.utcnow(),
-        'scope': ['read:patients', 'write:patients', 'read:appointments', 'write:appointments']
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-def require_jwt_auth(f):
-    """Décorateur pour vérifier le token JWT"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = None
-        auth_header = request.headers.get('Authorization')
-        
-        if auth_header:
-            try:
-                token = auth_header.split(" ")[1]  # Bearer <token>
-            except IndexError:
-                return jsonify({"error": "Invalid authorization header format"}), 401
-        
-        if not token:
-            return jsonify({"error": "Missing authorization token"}), 401
-        
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            request.current_user = payload
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Invalid token"}), 401
-        
-        return f(*args, **kwargs)
+def generate_tokens(user_id="healthcare_user", scopes=None):
+    """Générer un access token et un refresh token"""
+    if scopes is None:
+        scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process']
     
-    return decorated_function
+    now = datetime.utcnow()
+    
+    # Access Token (courte durée)
+    access_payload = {
+        'user_id': user_id,
+        'type': 'access',
+        'exp': now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        'iat': now,
+        'scope': scopes
+    }
+    access_token = jwt.encode(access_payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    
+    # Refresh Token (longue durée)
+    refresh_token_id = str(uuid.uuid4())
+    refresh_payload = {
+        'user_id': user_id,
+        'type': 'refresh',
+        'token_id': refresh_token_id,
+        'exp': now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        'iat': now,
+        'scope': scopes
+    }
+    refresh_token = jwt.encode(refresh_payload, JWT_REFRESH_SECRET, algorithm=JWT_ALGORITHM)
+    
+    # Stocker le refresh token comme actif
+    active_refresh_tokens.add(refresh_token_id)
+    
+    return access_token, refresh_token
+
+def require_jwt_auth(required_scopes=None):
+    """Décorateur pour vérifier le token JWT avec scopes optionnels"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            token = None
+            auth_header = request.headers.get('Authorization')
+            
+            if auth_header:
+                try:
+                    token = auth_header.split(" ")[1]  # Bearer <token>
+                except IndexError:
+                    return jsonify({"error": "Invalid authorization header format"}), 401
+            
+            if not token:
+                return jsonify({"error": "Missing authorization token"}), 401
+            
+            try:
+                payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                
+                # Vérifier que c'est un access token
+                if payload.get('type') != 'access':
+                    return jsonify({"error": "Invalid token type"}), 401
+                
+                # Vérifier les scopes si requis
+                if required_scopes:
+                    user_scopes = payload.get('scope', [])
+                    missing_scopes = [scope for scope in required_scopes if scope not in user_scopes]
+                    if missing_scopes:
+                        return jsonify({
+                            "error": "Insufficient permissions",
+                            "missing_scopes": missing_scopes
+                        }), 403
+                
+                request.current_user = payload
+            except jwt.ExpiredSignatureError:
+                return jsonify({
+                    "error": "Access token has expired",
+                    "message": "Use refresh token to get a new access token"
+                }), 401
+            except jwt.InvalidTokenError:
+                return jsonify({"error": "Invalid access token"}), 401
+            
+            return f(*args, **kwargs)
+        
+        return decorated_function
+    
+    # Support pour utilisation avec ou sans paramètres
+    if callable(required_scopes):
+        func = required_scopes
+        required_scopes = None
+        return decorator(func)
+    
+    return decorator
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "operational",
-        "service": "HealthCare Pro API",
-        "version": "2.1.0",
-        "fhir_version": "R4",
+        "service": "HealthCare Pro API (Hybride REST/HL7)",
+        "version": "2.2.0",
+        "api_types": {
+            "rest": "/api/* (patients, appointments)",
+            "hl7": "/hl7/* (ADT messages)"
+        },
+        "authentication": "JWT Bearer Token",
         "timestamp": datetime.utcnow().isoformat() + "Z"
     })
 
 @app.route('/auth/token', methods=['POST'])
 def get_token():
-    """Endpoint pour obtenir un token JWT (simulation OAuth)"""
+    """Endpoint pour obtenir des tokens JWT (OAuth 2.0 avec refresh)"""
     data = request.get_json()
     
-    # Simulation d'authentification simple
-    if data and data.get('client_id') == 'healthcare_pro_client' and data.get('client_secret') == 'healthcare_secret_2024':
-        token = generate_jwt_token()
-        return jsonify({
-            "access_token": token,
-            "token_type": "Bearer",
-            "expires_in": 86400,
-            "scope": "read:patients write:patients read:appointments write:appointments"
-        })
+    if not data:
+        return jsonify({"error": "JSON data required"}), 400
     
-    return jsonify({"error": "Invalid credentials"}), 401
+    grant_type = data.get('grant_type')
+    
+    if grant_type == 'client_credentials':
+        # Authentification client
+        if data.get('client_id') == 'healthcare_pro_client' and data.get('client_secret') == 'healthcare_secret_2024':
+            # Scopes personnalisés selon le client
+            requested_scopes = data.get('scope', '').split()
+            available_scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process']
+            granted_scopes = [scope for scope in requested_scopes if scope in available_scopes] or available_scopes
+            
+            access_token, refresh_token = generate_tokens(scopes=granted_scopes)
+            
+            return jsonify({
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "Bearer",
+                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                "scope": " ".join(granted_scopes),
+                "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+            })
+        else:
+            return jsonify({"error": "Invalid client credentials"}), 401
+    
+    elif grant_type == 'refresh_token':
+        # Renouvellement de token
+        refresh_token = data.get('refresh_token')
+        if not refresh_token:
+            return jsonify({"error": "Missing refresh_token"}), 400
+        
+        try:
+            payload = jwt.decode(refresh_token, JWT_REFRESH_SECRET, algorithms=[JWT_ALGORITHM])
+            
+            # Vérifier que c'est un refresh token
+            if payload.get('type') != 'refresh':
+                return jsonify({"error": "Invalid token type"}), 401
+            
+            # Vérifier que le token est encore actif
+            token_id = payload.get('token_id')
+            if token_id not in active_refresh_tokens:
+                return jsonify({"error": "Refresh token has been revoked"}), 401
+            
+            # Générer de nouveaux tokens
+            user_id = payload.get('user_id')
+            scopes = payload.get('scope', [])
+            new_access_token, new_refresh_token = generate_tokens(user_id, scopes)
+            
+            # Révoquer l'ancien refresh token
+            active_refresh_tokens.discard(token_id)
+            
+            return jsonify({
+                "access_token": new_access_token,
+                "refresh_token": new_refresh_token,
+                "token_type": "Bearer",
+                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                "scope": " ".join(scopes),
+                "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+            })
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Refresh token has expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid refresh token"}), 401
+    
+    else:
+        return jsonify({
+            "error": "Unsupported grant type",
+            "supported_grants": ["client_credentials", "refresh_token"]
+        }), 400
 
-# PATIENTS ENDPOINTS
-@app.route('/fhir/Patient', methods=['GET'])
-@require_jwt_auth
+@app.route('/auth/revoke', methods=['POST'])
+@require_jwt_auth(['write:tokens'])
+def revoke_token():
+    """Révoquer un refresh token"""
+    data = request.get_json()
+    refresh_token = data.get('token')
+    
+    if not refresh_token:
+        return jsonify({"error": "Missing token"}), 400
+    
+    try:
+        payload = jwt.decode(refresh_token, JWT_REFRESH_SECRET, algorithms=[JWT_ALGORITHM])
+        token_id = payload.get('token_id')
+        
+        if token_id in active_refresh_tokens:
+            active_refresh_tokens.discard(token_id)
+            return jsonify({"message": "Token revoked successfully"})
+        else:
+            return jsonify({"message": "Token was already revoked"})
+    
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 400
+
+# PATIENTS ENDPOINTS (REST API)
+@app.route('/api/patients', methods=['GET'])
+@require_jwt_auth(['read:patients'])
 def get_patients():
-    """Récupérer tous les patients (format FHIR Bundle)"""
-    bundle = {
-        "resourceType": "Bundle",
-        "id": str(uuid.uuid4()),
-        "type": "searchset",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "total": len(patients_db),
-        "entry": [
-            {
-                "resource": patient,
-                "search": {"mode": "match"}
-            } for patient in patients_db
+    """Récupérer tous les patients (format REST classique)"""
+    # Filtrage optionnel
+    search = request.args.get('search', '').lower()
+    active_only = request.args.get('active') == 'true'
+    
+    filtered_patients = patients_db
+    
+    if search:
+        filtered_patients = [
+            p for p in filtered_patients 
+            if search in p.get('first_name', '').lower() 
+            or search in p.get('last_name', '').lower()
+            or search in p.get('patient_number', '').lower()
         ]
-    }
-    return jsonify(bundle)
+    
+    if active_only:
+        filtered_patients = [p for p in filtered_patients if p.get('active', True)]
+    
+    return jsonify({
+        "success": True,
+        "data": filtered_patients,
+        "total": len(filtered_patients),
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    })
 
-@app.route('/fhir/Patient/<patient_id>', methods=['GET'])
-@require_jwt_auth
+@app.route('/api/patients/<patient_id>', methods=['GET'])
+@require_jwt_auth(['read:patients'])
 def get_patient(patient_id):
     """Récupérer un patient spécifique"""
     patient = next((p for p in patients_db if p["id"] == patient_id), None)
     if not patient:
         return jsonify({
-            "resourceType": "OperationOutcome",
-            "issue": [{
-                "severity": "error",
-                "code": "not-found",
-                "diagnostics": f"Patient with id '{patient_id}' not found"
-            }]
+            "success": False,
+            "error": "Patient not found",
+            "message": f"Patient with id '{patient_id}' not found"
         }), 404
-    return jsonify(patient)
+    
+    return jsonify({
+        "success": True,
+        "data": patient
+    })
 
-# APPOINTMENTS ENDPOINTS  
-@app.route('/fhir/Appointment', methods=['GET'])
-@require_jwt_auth
+@app.route('/api/patients', methods=['POST'])
+@require_jwt_auth(['write:patients'])
+def create_patient():
+    """Créer un nouveau patient"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            "success": False,
+            "error": "Invalid request",
+            "message": "JSON data required"
+        }), 400
+    
+    # Validation des champs requis
+    required_fields = ['first_name', 'last_name', 'email', 'birth_date']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+    
+    if missing_fields:
+        return jsonify({
+            "success": False,
+            "error": "Missing required fields",
+            "missing_fields": missing_fields
+        }), 400
+    
+    # Créer le nouveau patient
+    new_patient = {
+        "id": f"hcp-patient-{str(uuid.uuid4())[:8]}",
+        "patient_number": f"HCP{len(patients_db) + 1:03d}",
+        "first_name": data.get('first_name'),
+        "last_name": data.get('last_name'),
+        "middle_name": data.get('middle_name', ''),
+        "email": data.get('email'),
+        "phone": data.get('phone', ''),
+        "gender": data.get('gender', ''),
+        "birth_date": data.get('birth_date'),
+        "address": data.get('address', {}),
+        "emergency_contact": data.get('emergency_contact'),
+        "active": data.get('active', True),
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "updated_at": datetime.utcnow().isoformat() + "Z"
+    }
+    
+    patients_db.append(new_patient)
+    
+    return jsonify({
+        "success": True,
+        "data": new_patient,
+        "message": "Patient created successfully"
+    }), 201
+
+@app.route('/api/patients/<patient_id>', methods=['PUT'])
+@require_jwt_auth(['write:patients'])
+def update_patient(patient_id):
+    """Mettre à jour un patient"""
+    patient = next((p for p in patients_db if p["id"] == patient_id), None)
+    if not patient:
+        return jsonify({
+            "success": False,
+            "error": "Patient not found"
+        }), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "error": "Invalid request",
+            "message": "JSON data required"
+        }), 400
+    
+    # Mettre à jour les champs
+    updatable_fields = [
+        'first_name', 'last_name', 'middle_name', 'email', 'phone', 
+        'gender', 'birth_date', 'address', 'emergency_contact', 'active'
+    ]
+    
+    for field in updatable_fields:
+        if field in data:
+            patient[field] = data[field]
+    
+    patient['updated_at'] = datetime.utcnow().isoformat() + "Z"
+    
+    return jsonify({
+        "success": True,
+        "data": patient,
+        "message": "Patient updated successfully"
+    })
+
+# APPOINTMENTS ENDPOINTS (REST API)
+@app.route('/api/appointments', methods=['GET'])
+@require_jwt_auth(['read:appointments'])
 def get_appointments():
-    """Récupérer tous les rendez-vous (format FHIR Bundle)"""
-    # Filtrage optionnel par date
+    """Récupérer tous les rendez-vous (format REST classique)"""
+    # Filtrage optionnel
     date_filter = request.args.get('date')
+    status_filter = request.args.get('status')
+    patient_id = request.args.get('patient_id')
+    doctor_id = request.args.get('doctor_id')
+    
     filtered_appointments = appointments_db
     
     if date_filter:
-        # Filtrer par date de début
         filtered_appointments = [
-            apt for apt in appointments_db 
-            if apt["start"].startswith(date_filter)
+            apt for apt in filtered_appointments 
+            if apt["start_time"].startswith(date_filter)
         ]
     
-    bundle = {
-        "resourceType": "Bundle",
-        "id": str(uuid.uuid4()),
-        "type": "searchset", 
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "total": len(filtered_appointments),
-        "entry": [
-            {
-                "resource": appointment,
-                "search": {"mode": "match"}
-            } for appointment in filtered_appointments
+    if status_filter:
+        filtered_appointments = [
+            apt for apt in filtered_appointments 
+            if apt["status"] == status_filter
         ]
-    }
-    return jsonify(bundle)
+    
+    if patient_id:
+        filtered_appointments = [
+            apt for apt in filtered_appointments 
+            if apt["patient_id"] == patient_id
+        ]
+    
+    if doctor_id:
+        filtered_appointments = [
+            apt for apt in filtered_appointments 
+            if apt["doctor_id"] == doctor_id
+        ]
+    
+    return jsonify({
+        "success": True,
+        "data": filtered_appointments,
+        "total": len(filtered_appointments),
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    })
 
-@app.route('/fhir/Appointment/<appointment_id>', methods=['GET'])
-@require_jwt_auth
+@app.route('/api/appointments/<appointment_id>', methods=['GET'])
+@require_jwt_auth(['read:appointments'])
 def get_appointment(appointment_id):
     """Récupérer un rendez-vous spécifique"""
     appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
     if not appointment:
         return jsonify({
-            "resourceType": "OperationOutcome", 
-            "issue": [{
-                "severity": "error",
-                "code": "not-found",
-                "diagnostics": f"Appointment with id '{appointment_id}' not found"
-            }]
+            "success": False,
+            "error": "Appointment not found",
+            "message": f"Appointment with id '{appointment_id}' not found"
         }), 404
-    return jsonify(appointment)
+    
+    return jsonify({
+        "success": True,
+        "data": appointment
+    })
+
+@app.route('/api/appointments', methods=['POST'])
+@require_jwt_auth(['write:appointments'])
+def create_appointment():
+    """Créer un nouveau rendez-vous"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            "success": False,
+            "error": "Invalid request",
+            "message": "JSON data required"
+        }), 400
+    
+    # Validation des champs requis
+    required_fields = ['patient_id', 'doctor_id', 'start_time', 'end_time', 'description']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+    
+    if missing_fields:
+        return jsonify({
+            "success": False,
+            "error": "Missing required fields",
+            "missing_fields": missing_fields
+        }), 400
+    
+    # Vérifier que le patient existe
+    patient = next((p for p in patients_db if p["id"] == data.get('patient_id')), None)
+    if not patient:
+        return jsonify({
+            "success": False,
+            "error": "Patient not found"
+        }), 400
+    
+    # Créer le nouveau rendez-vous
+    new_appointment = {
+        "id": f"hcp-appointment-{str(uuid.uuid4())[:8]}",
+        "patient_id": data.get('patient_id'),
+        "patient_name": f"{patient['first_name']} {patient['last_name']}",
+        "doctor_id": data.get('doctor_id'),
+        "doctor_name": data.get('doctor_name', f"Dr. {data.get('doctor_id')}"),
+        "appointment_type": data.get('appointment_type', 'routine'),
+        "service_category": data.get('service_category', 'General Practice'),
+        "service_type": data.get('service_type', 'Consultation'),
+        "status": data.get('status', 'booked'),
+        "priority": data.get('priority', 'normal'),
+        "description": data.get('description'),
+        "start_time": data.get('start_time'),
+        "end_time": data.get('end_time'),
+        "duration_minutes": data.get('duration_minutes', 30),
+        "reason": data.get('reason', ''),
+        "notes": data.get('notes', ''),
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "updated_at": datetime.utcnow().isoformat() + "Z"
+    }
+    
+    appointments_db.append(new_appointment)
+    
+    return jsonify({
+        "success": True,
+        "data": new_appointment,
+        "message": "Appointment created successfully"
+    }), 201
+
+@app.route('/api/appointments/<appointment_id>', methods=['PUT'])
+@require_jwt_auth(['write:appointments'])
+def update_appointment(appointment_id):
+    """Mettre à jour un rendez-vous"""
+    appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
+    if not appointment:
+        return jsonify({
+            "success": False,
+            "error": "Appointment not found"
+        }), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "error": "Invalid request",
+            "message": "JSON data required"
+        }), 400
+    
+    # Mettre à jour les champs
+    updatable_fields = [
+        'doctor_id', 'doctor_name', 'appointment_type', 'service_category', 
+        'service_type', 'status', 'priority', 'description', 'start_time', 
+        'end_time', 'duration_minutes', 'reason', 'notes'
+    ]
+    
+    for field in updatable_fields:
+        if field in data:
+            appointment[field] = data[field]
+    
+    appointment['updated_at'] = datetime.utcnow().isoformat() + "Z"
+    
+    return jsonify({
+        "success": True,
+        "data": appointment,
+        "message": "Appointment updated successfully"
+    })
+
+@app.route('/api/appointments/<appointment_id>', methods=['DELETE'])
+@require_jwt_auth(['write:appointments'])
+def delete_appointment(appointment_id):
+    """Supprimer un rendez-vous"""
+    appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
+    if not appointment:
+        return jsonify({
+            "success": False,
+            "error": "Appointment not found"
+        }), 404
+    
+    appointments_db.remove(appointment)
+    
+    return jsonify({
+        "success": True,
+        "message": "Appointment deleted successfully"
+    })
 
 # ENDPOINT HL7 SIMULÉ
 @app.route('/hl7/ADT', methods=['POST'])
-@require_jwt_auth
+@require_jwt_auth(['hl7:process'])
 def process_hl7_adt():
     """
     Endpoint HL7 simulé pour les messages ADT (Admit, Discharge, Transfer)
@@ -442,13 +698,27 @@ PV1|1|I|ICU^101^1|||^Garcia^Elena^Dr|||||||||||12345|||||||||||||||||||||2024032
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5002))
-    print("🏥 HealthCare Pro API starting...")
-    print("🔐 JWT Authentication enabled")
+    print("🏥 HealthCare Pro API (Hybride REST/HL7) starting...")
+    print("🔐 OAuth 2.0 with JWT + Refresh Tokens enabled")
     print("📋 Test credentials:")
     print("   client_id: healthcare_pro_client")
     print("   client_secret: healthcare_secret_2024")
+    print("   grant_types: client_credentials, refresh_token")
     print("📚 Test data loaded:")
-    print(f"   - {len(patients_db)} patients (FHIR format)")
-    print(f"   - {len(appointments_db)} appointments (FHIR format)")
-    print("🔗 HL7 endpoint available at /hl7/ADT")
+    print(f"   - {len(patients_db)} patients (REST format)")
+    print(f"   - {len(appointments_db)} appointments (REST format)")
+    print("🔑 Available scopes:")
+    print("   - read:patients, write:patients")
+    print("   - read:appointments, write:appointments")
+    print("   - hl7:process")
+    print("⏱️  Token lifetimes:")
+    print(f"   - Access tokens: {ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
+    print(f"   - Refresh tokens: {REFRESH_TOKEN_EXPIRE_DAYS} days")
+    print("🌐 REST API endpoints:")
+    print("   - GET/POST /api/patients")
+    print("   - GET/PUT /api/patients/<id>")
+    print("   - GET/POST/PUT/DELETE /api/appointments")
+    print("🔗 HL7 endpoints:")
+    print("   - POST /hl7/ADT (ADT messages)")
+    print("   - GET /hl7/sample (sample message)")
     app.run(debug=False, port=port, host='0.0.0.0')

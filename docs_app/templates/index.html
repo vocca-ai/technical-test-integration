@@ -58,13 +58,14 @@ endblock %} {% block content %}
 
       <p class="text-gray-700 mb-6">
         Solution simple et efficace pour la gestion des rendez-vous médicaux et
-        des patients. Format JSON direct avec authentification par clé API.
+        des patients. Format JSON direct avec authentification HMAC
+        ultra-sécurisée.
       </p>
 
       <div class="space-y-3 mb-6">
         <div class="flex items-center text-sm text-gray-600">
-          <i class="fas fa-key mr-2 text-green-500"></i>
-          Authentification par API Key
+          <i class="fas fa-shield-alt mr-2 text-green-500"></i>
+          Authentification HMAC-SHA256
         </div>
         <div class="flex items-center text-sm text-gray-600">
           <i class="fas fa-users mr-2 text-green-500"></i>
@@ -94,7 +95,7 @@ endblock %} {% block content %}
         <span
           class="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-xs font-medium"
         >
-          API Key Auth
+          HMAC Auth
         </span>
       </div>
 
@@ -120,18 +121,19 @@ endblock %} {% block content %}
       </div>
 
       <p class="text-gray-700 mb-6">
-        API professionnelle avec support des standards FHIR R4 et HL7 v2.4.
-        Authentification JWT/OAuth pour une sécurité renforcée.
+        API hybride REST/HL7 avec OAuth 2.0, refresh tokens et scopes
+        granulaires. Support des standards FHIR R4 et HL7 v2.4 pour
+        l'interopérabilité.
       </p>
 
       <div class="space-y-3 mb-6">
         <div class="flex items-center text-sm text-gray-600">
-          <i class="fas fa-shield-alt mr-2 text-green-500"></i>
-          Authentification JWT/OAuth
+          <i class="fas fa-key mr-2 text-green-500"></i>
+          OAuth 2.0 + Refresh Tokens
         </div>
         <div class="flex items-center text-sm text-gray-600">
-          <i class="fas fa-hospital-user mr-2 text-green-500"></i>
-          Format FHIR R4
+          <i class="fas fa-code mr-2 text-green-500"></i>
+          API REST + HL7
         </div>
         <div class="flex items-center text-sm text-gray-600">
           <i class="fas fa-exchange-alt mr-2 text-green-500"></i>
@@ -147,7 +149,7 @@ endblock %} {% block content %}
         <span
           class="api-badge text-white px-3 py-1 rounded-full text-xs font-medium"
         >
-          FHIR R4
+          REST API
         </span>
         <span
           class="tech-badge text-white px-3 py-1 rounded-full text-xs font-medium"
@@ -157,7 +159,7 @@ endblock %} {% block content %}
         <span
           class="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-xs font-medium"
         >
-          JWT Auth
+          OAuth2 + JWT
         </span>
       </div>
 
@@ -241,12 +243,14 @@ endblock %} {% block content %}
       </h3>
       <div class="bg-gray-50 rounded-lg p-4 mb-4">
         <code class="text-sm text-gray-800">
-          curl -H "X-API-Key: medscheduler_key_12345" \<br />
+          curl -H "X-Client-ID: medscheduler_client" \<br />
+          &nbsp;&nbsp;&nbsp;&nbsp; -H "X-Timestamp: 1679485200" \<br />
+          &nbsp;&nbsp;&nbsp;&nbsp; -H "X-Signature: base64_signature" \<br />
           &nbsp;&nbsp;&nbsp;&nbsp; https://api.medscheduler.com/patients
         </code>
       </div>
       <p class="text-gray-600 mb-4">
-        Parfait pour des intégrations simples et rapides
+        Sécurité maximale avec authentification HMAC-SHA256
       </p>
       <a
         href="/medscheduler"
@@ -263,12 +267,12 @@ endblock %} {% block content %}
       </h3>
       <div class="bg-gray-50 rounded-lg p-4 mb-4">
         <code class="text-sm text-gray-800">
-          curl -H "Authorization: Bearer &lt;token&gt;" \<br />
-          &nbsp;&nbsp;&nbsp;&nbsp; https://api.healthcare-pro.com/fhir/Patient
+          curl -H "Authorization: Bearer &lt;access_token&gt;" \<br />
+          &nbsp;&nbsp;&nbsp;&nbsp; https://api.healthcare-pro.com/api/patients
         </code>
       </div>
       <p class="text-gray-600 mb-4">
-        Idéal pour les systèmes hospitaliers et les intégrations complexes
+        OAuth 2.0 moderne avec refresh tokens et scopes granulaires
       </p>
       <a
         href="/healthcare-pro"

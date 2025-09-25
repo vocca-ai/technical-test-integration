@@ -32,16 +32,16 @@ def index():
 def medscheduler_docs():
     """Documentation Swagger pour MedScheduler API"""
     return render_template('swagger.html', 
-                         api_name='MedScheduler API',
-                         api_description='API simple pour la gestion des rendez-vous médicaux',
+                         api_name='MedScheduler API (HMAC Auth)',
+                         api_description='API simple avec authentification HMAC-SHA256 ultra-sécurisée',
                          spec_url='/api/medscheduler/spec')
 
 @app.route('/healthcare-pro')
 def healthcare_pro_docs():
     """Documentation Swagger pour HealthCare Pro API"""
     return render_template('swagger.html',
-                         api_name='HealthCare Pro API', 
-                         api_description='API avancée avec support FHIR et HL7',
+                         api_name='HealthCare Pro API (OAuth2 + JWT)', 
+                         api_description='API hybride REST/HL7 avec OAuth 2.0 et refresh tokens',
                          spec_url='/api/healthcare-pro/spec')
 
 @app.route('/api/medscheduler/spec')

@@ -2,22 +2,33 @@ openapi: 3.0.3
 info:
   title: HealthCare Pro API
   description: |
-    API avancée pour la gestion des données de santé avec support FHIR R4 et HL7.
+    API hybride avancée pour la gestion des données de santé avec support REST et HL7.
 
-    ## Authentification
-    Cette API utilise l'authentification JWT/OAuth2 avec des tokens Bearer.
+    ## Authentification OAuth 2.0 + JWT
+    Cette API utilise OAuth 2.0 avec des tokens JWT et des refresh tokens pour une sécurité optimale.
 
-    ## Standards supportés
-    - **FHIR R4** : Format standard pour l'interopérabilité des données de santé
-    - **HL7 v2.4** : Messages ADT (Admit, Discharge, Transfer)
+    ### Fonctionnalités d'authentification:
+    - **Access tokens** courts (15 minutes) pour les requêtes
+    - **Refresh tokens** longs (7 jours) pour le renouvellement
+    - **Scopes granulaires** pour un contrôle d'accès précis
+    - **Révocation de tokens** pour une sécurité renforcée
 
-    ## Fonctionnalités
-    - Gestion des patients au format FHIR
-    - Gestion des rendez-vous au format FHIR
-    - Traitement des messages HL7 ADT
-    - Authentification OAuth2/JWT
+    ### Grant types supportés:
+    - `client_credentials`: Authentification initiale
+    - `refresh_token`: Renouvellement automatique
 
-  version: 2.1.0
+    ## Architecture hybride
+    - **API REST classique** : `/api/*` (patients, rendez-vous) - JSON simple
+    - **Endpoints HL7** : `/hl7/*` (messages ADT) - Format HL7 v2.4
+
+    ## Scopes disponibles
+    - `read:patients` : Lecture des patients
+    - `write:patients` : Création/modification des patients
+    - `read:appointments` : Lecture des rendez-vous
+    - `write:appointments` : Gestion des rendez-vous
+    - `hl7:process` : Traitement des messages HL7
+
+  version: 2.2.0
   contact:
     name: HealthCare Pro Support
     email: support@healthcare-pro.com
@@ -30,7 +41,7 @@ servers:
     description: Serveur de production
 
 security:
-  - BearerAuth: []
+  - OAuth2: []
 
 paths:
   /health:
@@ -53,13 +64,22 @@ paths:
                     example: operational
                   service:
                     type: string
-                    example: HealthCare Pro API
+                    example: HealthCare Pro API (Hybride REST/HL7)
                   version:
                     type: string
-                    example: 2.1.0
-                  fhir_version:
+                    example: 2.2.0
+                  api_types:
+                    type: object
+                    properties:
+                      rest:
+                        type: string
+                        example: /api/* (patients, appointments)
+                      hl7:
+                        type: string
+                        example: /hl7/* (ADT messages)
+                  authentication:
                     type: string
-                    example: R4
+                    example: JWT Bearer Token
                   timestamp:
                     type: string
                     format: date-time
@@ -67,10 +87,10 @@ paths:
 
   /auth/token:
     post:
-      summary: Obtenir un token d'authentification
+      summary: Obtenir des tokens d'authentification
       description: |
-        Endpoint OAuth2 pour obtenir un token JWT d'accès.
-        Utilise les credentials client pour l'authentification.
+        Endpoint OAuth 2.0 pour obtenir des tokens JWT d'accès et de rafraîchissement.
+        Support des grant types client_credentials et refresh_token.
       tags:
         - Authentication
       security: []
@@ -79,153 +99,421 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - client_id
-                - client_secret
-              properties:
-                client_id:
-                  type: string
-                  example: healthcare_pro_client
-                client_secret:
-                  type: string
-                  example: healthcare_secret_2024
-                grant_type:
-                  type: string
-                  default: client_credentials
+              oneOf:
+                - $ref: "#/components/schemas/ClientCredentialsRequest"
+                - $ref: "#/components/schemas/RefreshTokenRequest"
       responses:
         "200":
-          description: Token généré avec succès
+          description: Tokens générés avec succès
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
-                    description: Token JWT d'accès
-                  token_type:
-                    type: string
-                    example: Bearer
-                  expires_in:
-                    type: integer
-                    description: Durée de validité en secondes
-                    example: 86400
-                  scope:
-                    type: string
-                    example: read:patients write:patients read:appointments write:appointments
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Grant type non supporté ou paramètres manquants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
-          description: Credentials invalides
+          description: Credentials invalides ou refresh token expiré
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /fhir/Patient:
-    get:
-      summary: Rechercher des patients
-      description: |
-        Retourne un Bundle FHIR contenant tous les patients ou ceux correspondant aux critères de recherche.
-        Conforme à la spécification FHIR R4.
+  /auth/revoke:
+    post:
+      summary: Révoquer un refresh token
+      description: Révoque un refresh token pour des raisons de sécurité
       tags:
-        - FHIR Patients
+        - Authentication
+      security:
+        - OAuth2: [write:tokens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Refresh token à révoquer
       responses:
         "200":
-          description: Bundle FHIR des patients
+          description: Token révoqué avec succès
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PatientBundle"
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token revoked successfully
+        "400":
+          description: Token manquant ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
 
-  /fhir/Patient/{patient_id}:
+  # REST API ENDPOINTS
+  /api/patients:
     get:
-      summary: Récupérer un patient spécifique
-      description: Retourne une ressource Patient FHIR
+      summary: Lister tous les patients (REST)
+      description: |
+        Récupère la liste des patients au format JSON simple.
+        Support du filtrage par recherche et statut actif.
       tags:
-        - FHIR Patients
+        - REST Patients
+      security:
+        - OAuth2: [read:patients]
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Recherche par nom, prénom ou numéro patient
+          schema:
+            type: string
+            example: pierre
+        - name: active
+          in: query
+          required: false
+          description: Filtrer par statut actif
+          schema:
+            type: boolean
+            example: true
+      responses:
+        "200":
+          description: Liste des patients récupérée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientsResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+    post:
+      summary: Créer un nouveau patient (REST)
+      description: Ajoute un nouveau patient au système
+      tags:
+        - REST Patients
+      security:
+        - OAuth2: [write:patients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientCreate"
+      responses:
+        "201":
+          description: Patient créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "400":
+          description: Données invalides ou champs manquants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/patients/{patient_id}:
+    get:
+      summary: Récupérer un patient spécifique (REST)
+      description: Retourne les informations détaillées d'un patient
+      tags:
+        - REST Patients
+      security:
+        - OAuth2: [read:patients]
       parameters:
         - name: patient_id
           in: path
           required: true
-          description: Identifiant FHIR du patient
+          description: Identifiant unique du patient
           schema:
             type: string
             example: hcp-patient-001
       responses:
         "200":
-          description: Ressource Patient FHIR
+          description: Patient trouvé
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FHIRPatient"
+                $ref: "#/components/schemas/PatientResponse"
         "404":
           description: Patient non trouvé
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OperationOutcome"
+                $ref: "#/components/schemas/NotFoundError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
-  /fhir/Appointment:
-    get:
-      summary: Rechercher des rendez-vous
-      description: |
-        Retourne un Bundle FHIR contenant tous les rendez-vous ou ceux correspondant aux critères de recherche.
-        Support du filtrage par date.
+    put:
+      summary: Mettre à jour un patient (REST)
+      description: Modifie les informations d'un patient existant
       tags:
-        - FHIR Appointments
+        - REST Patients
+      security:
+        - OAuth2: [write:patients]
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          description: Identifiant unique du patient
+          schema:
+            type: string
+            example: hcp-patient-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpdate"
+      responses:
+        "200":
+          description: Patient mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "404":
+          description: Patient non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        "400":
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/appointments:
+    get:
+      summary: Lister tous les rendez-vous (REST)
+      description: |
+        Récupère la liste des rendez-vous au format JSON simple.
+        Support de multiples filtres.
+      tags:
+        - REST Appointments
+      security:
+        - OAuth2: [read:appointments]
       parameters:
         - name: date
           in: query
           required: false
-          description: Filtrer par date de début (format YYYY-MM-DD)
+          description: Filtrer par date (format YYYY-MM-DD)
           schema:
             type: string
             format: date
             example: 2024-03-22
+        - name: status
+          in: query
+          required: false
+          description: Filtrer par statut
+          schema:
+            type: string
+            enum: [booked, confirmed, completed, cancelled]
+            example: booked
+        - name: patient_id
+          in: query
+          required: false
+          description: Filtrer par patient
+          schema:
+            type: string
+            example: hcp-patient-001
+        - name: doctor_id
+          in: query
+          required: false
+          description: Filtrer par médecin
+          schema:
+            type: string
+            example: dr-garcia
       responses:
         "200":
-          description: Bundle FHIR des rendez-vous
+          description: Liste des rendez-vous récupérée avec succès
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AppointmentBundle"
+                $ref: "#/components/schemas/AppointmentsResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
-  /fhir/Appointment/{appointment_id}:
-    get:
-      summary: Récupérer un rendez-vous spécifique
-      description: Retourne une ressource Appointment FHIR
+    post:
+      summary: Créer un nouveau rendez-vous (REST)
+      description: Ajoute un nouveau rendez-vous au système
       tags:
-        - FHIR Appointments
+        - REST Appointments
+      security:
+        - OAuth2: [write:appointments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentCreate"
+      responses:
+        "201":
+          description: Rendez-vous créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "400":
+          description: Données invalides ou patient non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/appointments/{appointment_id}:
+    get:
+      summary: Récupérer un rendez-vous spécifique (REST)
+      description: Retourne les informations détaillées d'un rendez-vous
+      tags:
+        - REST Appointments
+      security:
+        - OAuth2: [read:appointments]
       parameters:
         - name: appointment_id
           in: path
           required: true
-          description: Identifiant FHIR du rendez-vous
+          description: Identifiant unique du rendez-vous
           schema:
             type: string
             example: hcp-appointment-001
       responses:
         "200":
-          description: Ressource Appointment FHIR
+          description: Rendez-vous trouvé
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FHIRAppointment"
+                $ref: "#/components/schemas/AppointmentResponse"
         "404":
           description: Rendez-vous non trouvé
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OperationOutcome"
+                $ref: "#/components/schemas/NotFoundError"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
+    put:
+      summary: Mettre à jour un rendez-vous (REST)
+      description: Modifie les informations d'un rendez-vous existant
+      tags:
+        - REST Appointments
+      security:
+        - OAuth2: [write:appointments]
+      parameters:
+        - name: appointment_id
+          in: path
+          required: true
+          description: Identifiant unique du rendez-vous
+          schema:
+            type: string
+            example: hcp-appointment-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        "200":
+          description: Rendez-vous mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "404":
+          description: Rendez-vous non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        "400":
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+    delete:
+      summary: Supprimer un rendez-vous (REST)
+      description: Supprime définitivement un rendez-vous
+      tags:
+        - REST Appointments
+      security:
+        - OAuth2: [write:appointments]
+      parameters:
+        - name: appointment_id
+          in: path
+          required: true
+          description: Identifiant unique du rendez-vous
+          schema:
+            type: string
+            example: hcp-appointment-001
+      responses:
+        "200":
+          description: Rendez-vous supprimé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Appointment deleted successfully
+        "404":
+          description: Rendez-vous non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  # HL7 ENDPOINTS
   /hl7/ADT:
     post:
       summary: Traiter un message HL7 ADT
@@ -234,6 +522,8 @@ paths:
         Accepte des messages HL7 bruts et retourne une confirmation ACK.
       tags:
         - HL7 Integration
+      security:
+        - OAuth2: [hl7:process]
       requestBody:
         required: true
         content:
@@ -271,6 +561,8 @@ paths:
                 $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
   /hl7/sample:
     get:
@@ -294,13 +586,26 @@ paths:
 
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    OAuth2:
+      type: oauth2
       description: |
-        Token JWT obtenu via l'endpoint /auth/token.
-        Format: `Authorization: Bearer <token>`
+        OAuth 2.0 avec JWT et refresh tokens.
+
+        Scopes disponibles:
+        - read:patients: Lecture des patients
+        - write:patients: Création/modification des patients
+        - read:appointments: Lecture des rendez-vous
+        - write:appointments: Gestion des rendez-vous
+        - hl7:process: Traitement des messages HL7
+      flows:
+        clientCredentials:
+          tokenUrl: /auth/token
+          scopes:
+            read:patients: Lecture des patients
+            write:patients: Création/modification des patients
+            read:appointments: Lecture des rendez-vous
+            write:appointments: Gestion des rendez-vous
+            hl7:process: Traitement des messages HL7
 
   responses:
     UnauthorizedError:
@@ -308,9 +613,479 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/AuthError"
+
+    ForbiddenError:
+      description: Permissions insuffisantes (scopes manquants)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ForbiddenError"
 
   schemas:
+    # Authentication Schemas
+    ClientCredentialsRequest:
+      type: object
+      required:
+        - grant_type
+        - client_id
+        - client_secret
+      properties:
+        grant_type:
+          type: string
+          enum: [client_credentials]
+          example: client_credentials
+        client_id:
+          type: string
+          example: healthcare_pro_client
+        client_secret:
+          type: string
+          example: healthcare_secret_2024
+        scope:
+          type: string
+          description: Scopes demandés (séparés par des espaces)
+          example: read:patients write:appointments
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - grant_type
+        - refresh_token
+      properties:
+        grant_type:
+          type: string
+          enum: [refresh_token]
+          example: refresh_token
+        refresh_token:
+          type: string
+          example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Token JWT d'accès
+          example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement
+          example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Durée de validité de l'access token en secondes
+          example: 900
+        refresh_expires_in:
+          type: integer
+          description: Durée de validité du refresh token en secondes
+          example: 604800
+        scope:
+          type: string
+          description: Scopes accordés
+          example: read:patients write:patients read:appointments
+
+    # Patient Schemas (REST)
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifiant unique du patient
+          example: hcp-patient-001
+        patient_number:
+          type: string
+          description: Numéro du patient
+          example: HCP001
+        first_name:
+          type: string
+          description: Prénom
+          example: Pierre
+        last_name:
+          type: string
+          description: Nom de famille
+          example: Dubois
+        middle_name:
+          type: string
+          description: Deuxième prénom
+          example: Michel
+        email:
+          type: string
+          format: email
+          description: Adresse email
+          example: pierre.dubois@email.com
+        phone:
+          type: string
+          description: Numéro de téléphone
+          example: +33145678901
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+          example: male
+        birth_date:
+          type: string
+          format: date
+          description: Date de naissance
+          example: 1978-11-08
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+              example: 789 Boulevard de l'Hôpital
+            city:
+              type: string
+              example: Marseille
+            postal_code:
+              type: string
+              example: "13001"
+            country:
+              type: string
+              example: FR
+        emergency_contact:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+              example: Marie Dubois
+            phone:
+              type: string
+              example: +33145678902
+            relationship:
+              type: string
+              example: spouse
+        active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T10:30:00.000Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T10:30:00.000Z
+
+    PatientCreate:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - email
+        - birth_date
+      properties:
+        first_name:
+          type: string
+          example: Pierre
+        last_name:
+          type: string
+          example: Dubois
+        middle_name:
+          type: string
+          example: Michel
+        email:
+          type: string
+          format: email
+          example: pierre.dubois@email.com
+        phone:
+          type: string
+          example: +33145678901
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+          example: male
+        birth_date:
+          type: string
+          format: date
+          example: 1978-11-08
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            postal_code:
+              type: string
+            country:
+              type: string
+        emergency_contact:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            relationship:
+              type: string
+        active:
+          type: boolean
+          default: true
+
+    PatientUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+        birth_date:
+          type: string
+          format: date
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            postal_code:
+              type: string
+            country:
+              type: string
+        emergency_contact:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            relationship:
+              type: string
+        active:
+          type: boolean
+
+    # Appointment Schemas (REST)
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          example: hcp-appointment-001
+        patient_id:
+          type: string
+          example: hcp-patient-001
+        patient_name:
+          type: string
+          example: Pierre Michel Dubois
+        doctor_id:
+          type: string
+          example: dr-garcia
+        doctor_name:
+          type: string
+          example: Dr. Elena Garcia
+        appointment_type:
+          type: string
+          enum: [routine, followup, emergency, specialist]
+          example: routine
+        service_category:
+          type: string
+          example: General Practice
+        service_type:
+          type: string
+          example: Consultation
+        status:
+          type: string
+          enum: [booked, confirmed, completed, cancelled]
+          example: booked
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          example: normal
+        description:
+          type: string
+          example: Consultation de suivi médical général
+        start_time:
+          type: string
+          format: date-time
+          example: 2024-03-22T10:00:00.000Z
+        end_time:
+          type: string
+          format: date-time
+          example: 2024-03-22T10:30:00.000Z
+        duration_minutes:
+          type: integer
+          example: 30
+        reason:
+          type: string
+          example: Encounter for check up
+        notes:
+          type: string
+          example: ""
+        created_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T11:30:00.000Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T11:30:00.000Z
+
+    AppointmentCreate:
+      type: object
+      required:
+        - patient_id
+        - doctor_id
+        - start_time
+        - end_time
+        - description
+      properties:
+        patient_id:
+          type: string
+          example: hcp-patient-001
+        doctor_id:
+          type: string
+          example: dr-garcia
+        doctor_name:
+          type: string
+          example: Dr. Elena Garcia
+        appointment_type:
+          type: string
+          enum: [routine, followup, emergency, specialist]
+          default: routine
+        service_category:
+          type: string
+          default: General Practice
+        service_type:
+          type: string
+          default: Consultation
+        status:
+          type: string
+          enum: [booked, confirmed, completed, cancelled]
+          default: booked
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          default: normal
+        description:
+          type: string
+          example: Consultation de suivi médical général
+        start_time:
+          type: string
+          format: date-time
+          example: 2024-03-22T10:00:00.000Z
+        end_time:
+          type: string
+          format: date-time
+          example: 2024-03-22T10:30:00.000Z
+        duration_minutes:
+          type: integer
+          default: 30
+        reason:
+          type: string
+        notes:
+          type: string
+
+    AppointmentUpdate:
+      type: object
+      properties:
+        doctor_id:
+          type: string
+        doctor_name:
+          type: string
+        appointment_type:
+          type: string
+          enum: [routine, followup, emergency, specialist]
+        service_category:
+          type: string
+        service_type:
+          type: string
+        status:
+          type: string
+          enum: [booked, confirmed, completed, cancelled]
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        description:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+        reason:
+          type: string
+        notes:
+          type: string
+
+    # Response Schemas
+    PatientsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+        total:
+          type: integer
+          example: 2
+        timestamp:
+          type: string
+          format: date-time
+
+    PatientResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Patient"
+        message:
+          type: string
+          example: Patient created successfully
+
+    AppointmentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        total:
+          type: integer
+          example: 2
+        timestamp:
+          type: string
+          format: date-time
+
+    AppointmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Appointment"
+        message:
+          type: string
+          example: Appointment created successfully
+
+    # Error Schemas
     Error:
       type: object
       properties:
@@ -319,353 +1094,64 @@ components:
           description: Message d'erreur
           example: Invalid token
 
-    OperationOutcome:
+    AuthError:
       type: object
-      description: Ressource FHIR OperationOutcome pour les erreurs
       properties:
-        resourceType:
+        error:
           type: string
-          example: OperationOutcome
-        issue:
-          type: array
-          items:
-            type: object
-            properties:
-              severity:
-                type: string
-                enum: [fatal, error, warning, information]
-                example: error
-              code:
-                type: string
-                example: not-found
-              diagnostics:
-                type: string
-                example: Patient with id 'hcp-patient-999' not found
+          example: Access token has expired
+        message:
+          type: string
+          example: Use refresh token to get a new access token
 
-    PatientBundle:
+    ForbiddenError:
       type: object
-      description: Bundle FHIR contenant des ressources Patient
       properties:
-        resourceType:
+        error:
           type: string
-          example: Bundle
-        id:
-          type: string
-          format: uuid
-        type:
-          type: string
-          example: searchset
-        timestamp:
-          type: string
-          format: date-time
-        total:
-          type: integer
-          example: 2
-        entry:
+          example: Insufficient permissions
+        missing_scopes:
           type: array
           items:
-            type: object
-            properties:
-              resource:
-                $ref: "#/components/schemas/FHIRPatient"
-              search:
-                type: object
-                properties:
-                  mode:
-                    type: string
-                    example: match
+            type: string
+          example: [write:patients]
 
-    AppointmentBundle:
+    ValidationError:
       type: object
-      description: Bundle FHIR contenant des ressources Appointment
       properties:
-        resourceType:
-          type: string
-          example: Bundle
-        id:
-          type: string
-          format: uuid
-        type:
-          type: string
-          example: searchset
-        timestamp:
-          type: string
-          format: date-time
-        total:
-          type: integer
-          example: 2
-        entry:
-          type: array
-          items:
-            type: object
-            properties:
-              resource:
-                $ref: "#/components/schemas/FHIRAppointment"
-              search:
-                type: object
-                properties:
-                  mode:
-                    type: string
-                    example: match
-
-    FHIRPatient:
-      type: object
-      description: Ressource Patient FHIR R4
-      properties:
-        resourceType:
-          type: string
-          example: Patient
-        id:
-          type: string
-          example: hcp-patient-001
-        meta:
-          type: object
-          properties:
-            versionId:
-              type: string
-              example: "1"
-            lastUpdated:
-              type: string
-              format: date-time
-              example: 2024-01-15T10:30:00.000Z
-            profile:
-              type: array
-              items:
-                type: string
-              example: ["http://healthcare-pro.com/fhir/Patient"]
-        identifier:
-          type: array
-          items:
-            type: object
-            properties:
-              use:
-                type: string
-                example: usual
-              type:
-                type: object
-                properties:
-                  coding:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        system:
-                          type: string
-                          example: http://terminology.hl7.org/CodeSystem/v2-0203
-                        code:
-                          type: string
-                          example: MR
-              value:
-                type: string
-                example: HCP001
-        active:
+        success:
           type: boolean
-          example: true
-        name:
-          type: array
-          items:
-            type: object
-            properties:
-              use:
-                type: string
-                example: official
-              family:
-                type: string
-                example: Dubois
-              given:
-                type: array
-                items:
-                  type: string
-                example: ["Pierre", "Michel"]
-        telecom:
-          type: array
-          items:
-            type: object
-            properties:
-              system:
-                type: string
-                enum: [phone, fax, email, pager, url, sms, other]
-                example: phone
-              value:
-                type: string
-                example: +33145678901
-              use:
-                type: string
-                enum: [home, work, temp, old, mobile]
-                example: home
-        gender:
+          example: false
+        error:
           type: string
-          enum: [male, female, other, unknown]
-          example: male
-        birthDate:
-          type: string
-          format: date
-          example: 1978-11-08
-        address:
+          example: Missing required fields
+        missing_fields:
           type: array
           items:
-            type: object
-            properties:
-              use:
-                type: string
-                example: home
-              line:
-                type: array
-                items:
-                  type: string
-                example: ["789 Boulevard de l'Hôpital"]
-              city:
-                type: string
-                example: Marseille
-              postalCode:
-                type: string
-                example: "13001"
-              country:
-                type: string
-                example: FR
+            type: string
+          example: [first_name, email]
 
-    FHIRAppointment:
+    NotFoundError:
       type: object
-      description: Ressource Appointment FHIR R4
       properties:
-        resourceType:
+        success:
+          type: boolean
+          example: false
+        error:
           type: string
-          example: Appointment
-        id:
+          example: Patient not found
+        message:
           type: string
-          example: hcp-appointment-001
-        meta:
-          type: object
-          properties:
-            versionId:
-              type: string
-              example: "1"
-            lastUpdated:
-              type: string
-              format: date-time
-              example: 2024-01-15T11:30:00.000Z
-            profile:
-              type: array
-              items:
-                type: string
-              example: ["http://healthcare-pro.com/fhir/Appointment"]
-        status:
-          type: string
-          enum:
-            [
-              proposed,
-              pending,
-              booked,
-              arrived,
-              fulfilled,
-              cancelled,
-              noshow,
-              entered-in-error,
-              checked-in,
-              waitlist,
-            ]
-          example: booked
-        serviceCategory:
-          type: array
-          items:
-            type: object
-            properties:
-              coding:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    system:
-                      type: string
-                      example: http://terminology.hl7.org/CodeSystem/service-category
-                    code:
-                      type: string
-                      example: "17"
-                    display:
-                      type: string
-                      example: General Practice
-        serviceType:
-          type: array
-          items:
-            type: object
-            properties:
-              coding:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    system:
-                      type: string
-                      example: http://snomed.info/sct
-                    code:
-                      type: string
-                      example: "11429006"
-                    display:
-                      type: string
-                      example: Consultation
-        appointmentType:
-          type: object
-          properties:
-            coding:
-              type: array
-              items:
-                type: object
-                properties:
-                  system:
-                    type: string
-                    example: http://terminology.hl7.org/CodeSystem/v2-0276
-                  code:
-                    type: string
-                    example: ROUTINE
-        priority:
-          type: integer
-          description: Priorité (1=urgent, 5=normal)
-          example: 5
-        description:
-          type: string
-          example: Consultation de suivi médical général
-        start:
-          type: string
-          format: date-time
-          example: 2024-03-22T10:00:00.000Z
-        end:
-          type: string
-          format: date-time
-          example: 2024-03-22T10:30:00.000Z
-        minutesDuration:
-          type: integer
-          example: 30
-        participant:
-          type: array
-          items:
-            type: object
-            properties:
-              actor:
-                type: object
-                properties:
-                  reference:
-                    type: string
-                    example: Patient/hcp-patient-001
-                  display:
-                    type: string
-                    example: Pierre Michel Dubois
-              required:
-                type: string
-                enum: [required, optional, information-only]
-                example: required
-              status:
-                type: string
-                enum: [accepted, declined, tentative, needs-action]
-                example: accepted
+          example: Patient with id 'hcp-patient-999' not found
 
 tags:
   - name: Health
     description: Endpoints de santé et statut de l'API
   - name: Authentication
-    description: Authentification OAuth2/JWT
-  - name: FHIR Patients
-    description: Gestion des patients au format FHIR R4
-  - name: FHIR Appointments
-    description: Gestion des rendez-vous au format FHIR R4
+    description: Authentification OAuth 2.0 avec JWT et refresh tokens
+  - name: REST Patients
+    description: Gestion des patients au format REST (JSON simple)
+  - name: REST Appointments
+    description: Gestion des rendez-vous au format REST (JSON simple)
   - name: HL7 Integration
     description: Intégration HL7 v2.4 pour les messages ADT

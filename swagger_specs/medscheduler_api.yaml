@@ -4,15 +4,30 @@ info:
   description: |
     API simple et directe pour la gestion des rendez-vous médicaux et des patients.
 
-    ## Authentification
-    Cette API utilise une clé API simple via le header `X-API-Key`.
+    ## Authentification HMAC-SHA256
+    Cette API utilise une authentification par signature HMAC-SHA256 ultra-sécurisée.
+
+    ### Headers requis pour chaque requête:
+    - `X-Client-ID`: Identifiant du client (medscheduler_client)
+    - `X-Timestamp`: Timestamp Unix de la requête
+    - `X-Signature`: Signature HMAC-SHA256 calculée
+
+    ### Calcul de la signature:
+    1. Créer la chaîne à signer: `{METHOD}\n{PATH}\n{TIMESTAMP}\n{BODY}`
+    2. Calculer HMAC-SHA256 avec la clé secrète
+    3. Encoder en Base64
+
+    ### Protection contre replay attacks:
+    - Les signatures expirent après 5 minutes
+    - Chaque timestamp ne peut être utilisé qu'une fois
 
     ## Fonctionnalités
     - Gestion des patients
     - Gestion des rendez-vous médicaux
     - Format JSON simple et direct
+    - Endpoint helper pour générer les signatures
 
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: MedScheduler Support
     email: support@medscheduler.com
@@ -25,7 +40,7 @@ servers:
     description: Serveur de production
 
 security:
-  - ApiKeyAuth: []
+  - HMACAuth: []
 
 paths:
   /health:
@@ -51,11 +66,88 @@ paths:
                     example: MedScheduler
                   version:
                     type: string
-                    example: 1.0.0
+                    example: 1.1.0
+                  authentication:
+                    type: string
+                    example: HMAC-SHA256 Signature
                   timestamp:
                     type: string
                     format: date-time
                     example: 2024-03-20T10:30:00Z
+
+  /auth/signature-helper:
+    post:
+      summary: Générer une signature HMAC (aide au développement)
+      description: |
+        Endpoint d'aide pour générer une signature HMAC-SHA256.
+        Utile pour les développeurs qui intègrent l'API.
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method:
+                  type: string
+                  description: Méthode HTTP
+                  example: GET
+                  default: GET
+                path:
+                  type: string
+                  description: Chemin de l'endpoint
+                  example: /patients
+                  default: /
+                body:
+                  type: string
+                  description: Corps de la requête (pour POST/PUT)
+                  example: '{"first_name":"Jean"}'
+                  default: ""
+                timestamp:
+                  type: string
+                  description: Timestamp Unix (optionnel, généré automatiquement)
+                  example: "1679485200"
+      responses:
+        "200":
+          description: Signature générée avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signature:
+                    type: string
+                    description: Signature HMAC-SHA256 en Base64
+                  headers:
+                    type: object
+                    description: Headers à utiliser pour la requête
+                    properties:
+                      X-Client-ID:
+                        type: string
+                        example: medscheduler_client
+                      X-Timestamp:
+                        type: string
+                        example: "1679485200"
+                      X-Signature:
+                        type: string
+                        example: "base64_encoded_signature"
+                  string_to_sign:
+                    type: string
+                    description: Chaîne utilisée pour calculer la signature
+                    example: "GET\n/patients\n1679485200\n"
+                  expires_in:
+                    type: integer
+                    description: Durée de validité en secondes
+                    example: 300
+        "400":
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /patients:
     get:
@@ -265,19 +357,27 @@ paths:
 
 components:
   securitySchemes:
-    ApiKeyAuth:
+    HMACAuth:
       type: apiKey
       in: header
-      name: X-API-Key
-      description: "Clé API pour l'authentification (valeur par défaut: medscheduler_key_12345)"
+      name: X-Signature
+      description: |
+        Authentification HMAC-SHA256. Requiert les headers:
+        - X-Client-ID: medscheduler_client
+        - X-Timestamp: timestamp Unix
+        - X-Signature: signature HMAC-SHA256 en Base64
+
+        Utilisez l'endpoint /auth/signature-helper pour générer les signatures.
 
   responses:
     UnauthorizedError:
-      description: Clé API manquante ou invalide
+      description: Authentification HMAC échouée
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            oneOf:
+              - $ref: "#/components/schemas/Error"
+              - $ref: "#/components/schemas/HMACError"
 
   schemas:
     Patient:
@@ -487,11 +587,43 @@ components:
         error:
           type: string
           description: Message d'erreur
-          example: Invalid or missing API key
+          example: Invalid signature
+
+    HMACError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Message d'erreur HMAC
+          example: Invalid signature
+        required:
+          type: array
+          items:
+            type: string
+          description: Headers requis manquants
+          example: ["X-Client-ID", "X-Timestamp", "X-Signature"]
+        debug_info:
+          type: object
+          description: Informations de débogage
+          properties:
+            method:
+              type: string
+              example: GET
+            path:
+              type: string
+              example: /patients
+            timestamp:
+              type: string
+              example: "1679485200"
+            body_length:
+              type: integer
+              example: 0
 
 tags:
   - name: Health
     description: Endpoints de santé et statut de l'API
+  - name: Authentication
+    description: Authentification HMAC et outils de développement
   - name: Patients
     description: Gestion des patients
   - name: Rendez-vous
