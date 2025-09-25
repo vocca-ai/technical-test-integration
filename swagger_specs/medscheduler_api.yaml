@@ -368,21 +368,21 @@ components:
         - X-Client-ID: medscheduler_client
         - X-Timestamp: timestamp Unix
         - X-Signature: signature HMAC-SHA256 en Base64
-        
+
         Utilisez l'endpoint /auth/signature-helper pour générer les signatures.
-    
+
     ClientID:
       type: apiKey
       in: header
       name: X-Client-ID
       description: Identifiant du client
-    
+
     Timestamp:
       type: apiKey
       in: header
       name: X-Timestamp
       description: Timestamp Unix de la requête
-    
+
     Signature:
       type: apiKey
       in: header

@@ -592,9 +592,9 @@ components:
       bearerFormat: JWT
       description: |
         Token JWT obtenu via l'endpoint /auth/token.
-        
+
         Exemple: Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
-        
+
         Scopes disponibles:
         - read:patients: Lecture des patients
         - write:patients: Création/modification des patients
