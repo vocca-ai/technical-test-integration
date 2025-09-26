@@ -33,21 +33,21 @@ test_patients = [
         "id": "pat_001",
         "first_name": "Jean",
         "last_name": "Dupont",
-        "birth_date": "1985-03-15",
+        "birth_date": "15/03/1985",
         "phone": "+33123456789",
         "email": "jean.dupont@email.com",
         "address": "123 Rue de la Santé, 75014 Paris",
-        "created_at": "2024-01-15T10:30:00Z"
+        "created_at": "2024/01/15 10:30:00"
     },
     {
         "id": "pat_002", 
         "first_name": "Marie",
         "last_name": "Martin",
-        "birth_date": "1992-07-22",
+        "birth_date": "22/07/1992",
         "phone": "+33987654321",
         "email": "marie.martin@email.com",
         "address": "456 Avenue des Médecins, 69001 Lyon",
-        "created_at": "2024-01-20T14:15:00Z"
+        "created_at": "2024/01/20 14:15:00"
     }
 ]
 
@@ -56,25 +56,25 @@ test_appointments = [
         "id": "apt_001",
         "patient_id": "pat_001",
         "doctor_name": "Dr. Leblanc",
-        "appointment_date": "2024-03-20",
-        "appointment_time": "14:30",
+        "appointment_date": "20-03-2024",
+        "appointment_time": "2:30 PM",
         "duration_minutes": 30,
         "type": "consultation",
         "status": "scheduled",
         "notes": "Consultation de routine",
-        "created_at": "2024-01-15T11:00:00Z"
+        "created_at": "2024/01/15 11:00:00"
     },
     {
         "id": "apt_002",
         "patient_id": "pat_002", 
         "doctor_name": "Dr. Rousseau",
-        "appointment_date": "2024-03-25",
-        "appointment_time": "09:15",
+        "appointment_date": "25-03-2024",
+        "appointment_time": "9:15 AM",
         "duration_minutes": 45,
         "type": "specialist",
         "status": "confirmed",
         "notes": "Consultation spécialisée cardiologie",
-        "created_at": "2024-01-20T15:30:00Z"
+        "created_at": "2024/01/20 15:30:00"
     }
 ]
 
@@ -166,7 +166,7 @@ def health_check():
         "api": "MedScheduler",
         "version": "1.1.0",
         "authentication": "HMAC-SHA256 Signature",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
     })
 
 @app.route('/auth/signature-helper', methods=['POST'])
@@ -233,7 +233,7 @@ def create_patient():
         "phone": data["phone"],
         "email": data.get("email", ""),
         "address": data.get("address", ""),
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
     }
     
     patients.append(patient)
@@ -291,7 +291,7 @@ def create_appointment():
         "type": data.get("type", "consultation"),
         "status": data.get("status", "scheduled"),
         "notes": data.get("notes", ""),
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
     }
     
     appointments.append(appointment)

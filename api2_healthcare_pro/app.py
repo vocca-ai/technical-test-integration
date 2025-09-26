@@ -26,7 +26,7 @@ if CORS:
 JWT_SECRET = "healthcare_pro_secret_key_2024"
 JWT_REFRESH_SECRET = "healthcare_pro_refresh_secret_2024"
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Token d'accès court
+ACCESS_TOKEN_EXPIRE_SECONDS = 10  # Token d'accès très court (10 secondes)
 REFRESH_TOKEN_EXPIRE_DAYS = 7     # Refresh token plus long
 
 # Base de données des refresh tokens (en production, utiliser Redis/DB)
@@ -47,7 +47,7 @@ test_patients_data = [
         "email": "pierre.dubois@email.com",
         "phone": "+33145678901",
         "gender": "male",
-        "birth_date": "1978-11-08",
+        "birth_date": "08.11.1978",
         "address": {
             "street": "789 Boulevard de l'Hôpital",
             "city": "Marseille",
@@ -60,8 +60,8 @@ test_patients_data = [
             "relationship": "spouse"
         },
         "active": True,
-        "created_at": "2024-01-15T10:30:00.000Z",
-        "updated_at": "2024-01-15T10:30:00.000Z"
+        "created_at": "Mon, 15 Jan 2024 10:30:00 GMT",
+        "updated_at": "Mon, 15 Jan 2024 10:30:00 GMT"
     },
     {
         "id": "hcp-patient-002",
@@ -72,7 +72,7 @@ test_patients_data = [
         "email": "sophie.leroy@email.com",
         "phone": "+33156789012",
         "gender": "female",
-        "birth_date": "1990-05-14",
+        "birth_date": "14.05.1990",
         "address": {
             "street": "321 Rue des Soins",
             "city": "Toulouse",
@@ -81,8 +81,8 @@ test_patients_data = [
         },
         "emergency_contact": None,
         "active": True,
-        "created_at": "2024-01-22T09:15:00.000Z",
-        "updated_at": "2024-01-22T09:15:00.000Z"
+        "created_at": "Mon, 22 Jan 2024 09:15:00 GMT",
+        "updated_at": "Mon, 22 Jan 2024 09:15:00 GMT"
     }
 ]
 
@@ -99,13 +99,13 @@ test_appointments_data = [
         "status": "booked",
         "priority": "normal",
         "description": "Consultation de suivi médical général",
-        "start_time": "2024-03-22T10:00:00.000Z",
-        "end_time": "2024-03-22T10:30:00.000Z",
+        "start_time": "22 Mar 2024, 10:00",
+        "end_time": "22 Mar 2024, 10:30",
         "duration_minutes": 30,
         "reason": "Encounter for check up",
         "notes": "",
-        "created_at": "2024-01-15T11:30:00.000Z",
-        "updated_at": "2024-01-15T11:30:00.000Z"
+        "created_at": "Mon, 15 Jan 2024 11:30:00 GMT",
+        "updated_at": "Mon, 15 Jan 2024 11:30:00 GMT"
     },
     {
         "id": "hcp-appointment-002",
@@ -119,13 +119,13 @@ test_appointments_data = [
         "status": "confirmed",
         "priority": "high",
         "description": "Échocardiographie de contrôle post-opératoire",
-        "start_time": "2024-03-28T14:15:00.000Z",
-        "end_time": "2024-03-28T15:00:00.000Z",
+        "start_time": "28 Mar 2024, 14:15",
+        "end_time": "28 Mar 2024, 15:00",
         "duration_minutes": 45,
         "reason": "Post-operative follow-up",
         "notes": "Post-surgical cardiac monitoring",
-        "created_at": "2024-01-22T14:45:00.000Z",
-        "updated_at": "2024-01-22T14:45:00.000Z"
+        "created_at": "Mon, 22 Jan 2024 14:45:00 GMT",
+        "updated_at": "Mon, 22 Jan 2024 14:45:00 GMT"
     }
 ]
 
@@ -144,7 +144,7 @@ def generate_tokens(user_id="healthcare_user", scopes=None):
     access_payload = {
         'user_id': user_id,
         'type': 'access',
-        'exp': now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        'exp': now + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS),
         'iat': now,
         'scope': scopes
     }
@@ -234,7 +234,7 @@ def health_check():
             "hl7": "/hl7/* (ADT messages)"
         },
         "authentication": "JWT Bearer Token",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     })
 
 @app.route('/auth/token', methods=['POST'])
@@ -261,7 +261,7 @@ def get_token():
                 "access_token": access_token,
                 "refresh_token": refresh_token,
                 "token_type": "Bearer",
-                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                "expires_in": ACCESS_TOKEN_EXPIRE_SECONDS,
                 "scope": " ".join(granted_scopes),
                 "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
             })
@@ -298,7 +298,7 @@ def get_token():
                 "access_token": new_access_token,
                 "refresh_token": new_refresh_token,
                 "token_type": "Bearer",
-                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                "expires_in": ACCESS_TOKEN_EXPIRE_SECONDS,
                 "scope": " ".join(scopes),
                 "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
             })
@@ -363,7 +363,7 @@ def get_patients():
         "success": True,
         "data": filtered_patients,
         "total": len(filtered_patients),
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     })
 
 @app.route('/api/patients/<patient_id>', methods=['GET'])
@@ -421,8 +421,8 @@ def create_patient():
         "address": data.get('address', {}),
         "emergency_contact": data.get('emergency_contact'),
         "active": data.get('active', True),
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "updated_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+        "updated_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     }
     
     patients_db.append(new_patient)
@@ -462,7 +462,7 @@ def update_patient(patient_id):
         if field in data:
             patient[field] = data[field]
     
-    patient['updated_at'] = datetime.utcnow().isoformat() + "Z"
+    patient['updated_at'] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     
     return jsonify({
         "success": True,
@@ -511,7 +511,7 @@ def get_appointments():
         "success": True,
         "data": filtered_appointments,
         "total": len(filtered_appointments),
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     })
 
 @app.route('/api/appointments/<appointment_id>', methods=['GET'])
@@ -581,8 +581,8 @@ def create_appointment():
         "duration_minutes": data.get('duration_minutes', 30),
         "reason": data.get('reason', ''),
         "notes": data.get('notes', ''),
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "updated_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+        "updated_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     }
     
     appointments_db.append(new_appointment)
@@ -623,7 +623,7 @@ def update_appointment(appointment_id):
         if field in data:
             appointment[field] = data[field]
     
-    appointment['updated_at'] = datetime.utcnow().isoformat() + "Z"
+    appointment['updated_at'] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     
     return jsonify({
         "success": True,
@@ -712,7 +712,7 @@ if __name__ == '__main__':
     print("   - read:appointments, write:appointments")
     print("   - hl7:process")
     print("⏱️  Token lifetimes:")
-    print(f"   - Access tokens: {ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
+    print(f"   - Access tokens: {ACCESS_TOKEN_EXPIRE_SECONDS} seconds")
     print(f"   - Refresh tokens: {REFRESH_TOKEN_EXPIRE_DAYS} days")
     print("🌐 REST API endpoints:")
     print("   - GET/POST /api/patients")

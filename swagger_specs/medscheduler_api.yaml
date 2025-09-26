@@ -72,8 +72,8 @@ paths:
                     example: HMAC-SHA256 Signature
                   timestamp:
                     type: string
-                    format: date-time
-                    example: 2024-03-20T10:30:00Z
+                    pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
+                    example: 20-03-2024T10:30:00Z
 
   /auth/signature-helper:
     post:
@@ -243,8 +243,8 @@ paths:
           description: Filtrer par date (format YYYY-MM-DD)
           schema:
             type: string
-            format: date
-            example: 2024-03-20
+            pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
+            example: 20-03-2024
       responses:
         "200":
           description: Liste des rendez-vous récupérée avec succès
@@ -399,7 +399,7 @@ components:
           example: Dupont
         birth_date:
           type: string
-          format: date
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
           description: Date de naissance
           example: 1985-03-15
         phone:
@@ -417,7 +417,7 @@ components:
           example: 123 Rue de la Santé, 75014 Paris
         created_at:
           type: string
-          format: date-time
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
           description: Date de création du dossier
           example: 2024-01-15T10:30:00Z
 
@@ -439,7 +439,7 @@ components:
           example: Dupont
         birth_date:
           type: string
-          format: date
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
           description: Date de naissance
           example: 1985-03-15
         phone:
@@ -473,13 +473,13 @@ components:
           example: Dr. Leblanc
         appointment_date:
           type: string
-          format: date
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
           description: Date du rendez-vous
-          example: 2024-03-20
+          example: 20-03-2024
         appointment_time:
           type: string
           description: Heure du rendez-vous
-          example: "14:30"
+          example: "2:30 PM"
         duration_minutes:
           type: integer
           description: Durée en minutes
@@ -500,7 +500,7 @@ components:
           example: Consultation de routine
         created_at:
           type: string
-          format: date-time
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
           description: Date de création
           example: 2024-01-15T11:00:00Z
 
@@ -522,13 +522,13 @@ components:
           example: Dr. Leblanc
         appointment_date:
           type: string
-          format: date
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
           description: Date du rendez-vous
-          example: 2024-03-20
+          example: 20-03-2024
         appointment_time:
           type: string
           description: Heure du rendez-vous
-          example: "14:30"
+          example: "2:30 PM"
         duration_minutes:
           type: integer
           description: "Durée en minutes (optionnel, défaut: 30)"
@@ -557,13 +557,13 @@ components:
           example: Dr. Leblanc
         appointment_date:
           type: string
-          format: date
+          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"
           description: Date du rendez-vous
-          example: 2024-03-20
+          example: 20-03-2024
         appointment_time:
           type: string
           description: Heure du rendez-vous
-          example: "14:30"
+          example: "2:30 PM"
         duration_minutes:
           type: integer
           description: Durée en minutes

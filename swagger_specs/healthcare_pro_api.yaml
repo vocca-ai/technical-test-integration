@@ -82,7 +82,7 @@ paths:
                     example: JWT Bearer Token
                   timestamp:
                     type: string
-                    format: date-time
+                    description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
                     example: 2024-03-20T10:30:00Z
 
   /auth/token:
@@ -327,7 +327,7 @@ paths:
           description: Filtrer par date (format YYYY-MM-DD)
           schema:
             type: string
-            format: date
+            pattern: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
             example: 2024-03-22
         - name: status
           in: query
@@ -721,9 +721,9 @@ components:
           example: male
         birth_date:
           type: string
-          format: date
+          pattern: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
           description: Date de naissance
-          example: 1978-11-08
+          example: 08.11.1978
         address:
           type: object
           properties:
@@ -757,11 +757,11 @@ components:
           example: true
         created_at:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
           example: 2024-01-15T10:30:00.000Z
         updated_at:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
           example: 2024-01-15T10:30:00.000Z
 
     PatientCreate:
@@ -794,8 +794,8 @@ components:
           example: male
         birth_date:
           type: string
-          format: date
-          example: 1978-11-08
+          pattern: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
+          example: 08.11.1978
         address:
           type: object
           properties:
@@ -840,7 +840,7 @@ components:
           enum: [male, female, other, unknown]
         birth_date:
           type: string
-          format: date
+          pattern: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
         address:
           type: object
           properties:
@@ -907,12 +907,12 @@ components:
           example: Consultation de suivi médical général
         start_time:
           type: string
-          format: date-time
-          example: 2024-03-22T10:00:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: 22 Mar 2024, 10:00
         end_time:
           type: string
-          format: date-time
-          example: 2024-03-22T10:30:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: 22 Mar 2024, 10:30
         duration_minutes:
           type: integer
           example: 30
@@ -924,12 +924,12 @@ components:
           example: ""
         created_at:
           type: string
-          format: date-time
-          example: 2024-01-15T11:30:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: Mon, 15 Jan 2024 11:30:00 GMT
         updated_at:
           type: string
-          format: date-time
-          example: 2024-01-15T11:30:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: Mon, 15 Jan 2024 11:30:00 GMT
 
     AppointmentCreate:
       type: object
@@ -972,12 +972,12 @@ components:
           example: Consultation de suivi médical général
         start_time:
           type: string
-          format: date-time
-          example: 2024-03-22T10:00:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: 22 Mar 2024, 10:00
         end_time:
           type: string
-          format: date-time
-          example: 2024-03-22T10:30:00.000Z
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
+          example: 22 Mar 2024, 10:30
         duration_minutes:
           type: integer
           default: 30
@@ -1010,10 +1010,10 @@ components:
           type: string
         start_time:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
         end_time:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
         duration_minutes:
           type: integer
         reason:
@@ -1037,7 +1037,7 @@ components:
           example: 2
         timestamp:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
 
     PatientResponse:
       type: object
@@ -1066,7 +1066,7 @@ components:
           example: 2
         timestamp:
           type: string
-          format: date-time
+          description: "Format: DD MMM YYYY, HH:MM ou RFC 2822 GMT"
 
     AppointmentResponse:
       type: object
