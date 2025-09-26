@@ -72,8 +72,8 @@ paths:
                     example: HMAC-SHA256 Signature
                   timestamp:
                     type: string
-                    pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
-                    example: 20-03-2024T10:30:00Z
+                    description: "Format: DD/MM/YYYY HH:MM:SS"
+                    example: 26/09/2025 17:31:47
 
   /auth/signature-helper:
     post:
