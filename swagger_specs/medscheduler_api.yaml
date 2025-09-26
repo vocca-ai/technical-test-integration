@@ -417,9 +417,8 @@ components:
           example: 123 Rue de la Santé, 75014 Paris
         created_at:
           type: string
-          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
-          description: Date de création du dossier
-          example: 2024-01-15T10:30:00Z
+          description: Date de création du dossier (format YYYY/MM/DD HH:MM:SS)
+          example: 2024/01/15 10:30:00
 
     PatientCreate:
       type: object
@@ -500,9 +499,8 @@ components:
           example: Consultation de routine
         created_at:
           type: string
-          pattern: "^\\d{2}[-/]\\d{2}[-/]\\d{4}$"-time
-          description: Date de création
-          example: 2024-01-15T11:00:00Z
+          description: Date de création (format YYYY/MM/DD HH:MM:SS)
+          example: 2024/01/15 11:00:00
 
     AppointmentCreate:
       type: object
