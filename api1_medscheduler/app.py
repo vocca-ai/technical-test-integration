@@ -6,7 +6,10 @@ Format: JSON simple et direct
 """
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
 from datetime import datetime, timedelta
 import uuid
 import json
@@ -16,7 +19,8 @@ import base64
 import time
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+if CORS:
+    CORS(app)  # Enable CORS for all routes
 
 # Configuration HMAC
 CLIENT_ID = "medscheduler_client"
