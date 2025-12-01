@@ -37,20 +37,18 @@ test_patients = [
         "id": "pat_001",
         "first_name": "Jean",
         "last_name": "Dupont",
-        "birth_date": "15/03/1985",
-        "phone": "+33123456789",
+        "birthdate": "1985-03-15",
+        "phone_number": "+33123456789",
         "email": "jean.dupont@email.com",
-        "address": "123 Rue de la Santé, 75014 Paris",
         "created_at": "2024/01/15 10:30:00"
     },
     {
         "id": "pat_002", 
         "first_name": "Marie",
         "last_name": "Martin",
-        "birth_date": "22/07/1992",
-        "phone": "+33987654321",
+        "birthdate": "1992-07-22",
+        "phone_number": "+33987654321",
         "email": "marie.martin@email.com",
-        "address": "456 Avenue des Médecins, 69001 Lyon",
         "created_at": "2024/01/20 14:15:00"
     }
 ]
@@ -60,25 +58,37 @@ test_appointments = [
         "id": "apt_001",
         "patient_id": "pat_001",
         "doctor_name": "Dr. Leblanc",
-        "appointment_date": "20-03-2024",
-        "appointment_time": "2:30 PM",
-        "duration_minutes": 30,
-        "type": "consultation",
-        "status": "scheduled",
-        "notes": "Consultation de routine",
+        "appointment_date": "2024-03-20",
+        "appointment_time": "14:30",
+        "duration": 30,
+        "reason": "Consultation de routine",
         "created_at": "2024/01/15 11:00:00"
     },
     {
         "id": "apt_002",
         "patient_id": "pat_002", 
         "doctor_name": "Dr. Rousseau",
-        "appointment_date": "25-03-2024",
-        "appointment_time": "9:15 AM",
-        "duration_minutes": 45,
-        "type": "specialist",
-        "status": "confirmed",
-        "notes": "Consultation spécialisée cardiologie",
+        "appointment_date": "2024-03-25",
+        "appointment_time": "09:15",
+        "duration": 45,
+        "reason": "Consultation spécialisée cardiologie",
         "created_at": "2024/01/20 15:30:00"
+    }
+]
+
+# Données de disponibilités
+availabilities = [
+    {
+        "id": "avail_001",
+        "doctor_name": "Dr. Leblanc",
+        "date": "2024-03-20",
+        "slots": ["09:00", "09:30", "10:00", "14:00", "14:30", "15:00"]
+    },
+    {
+        "id": "avail_002",
+        "doctor_name": "Dr. Rousseau",
+        "date": "2024-03-25",
+        "slots": ["09:00", "09:15", "09:30", "14:00", "14:15", "14:30"]
     }
 ]
 
@@ -173,31 +183,6 @@ def health_check():
         "timestamp": datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
     })
 
-@app.route('/auth/signature-helper', methods=['POST'])
-def signature_helper():
-    """Endpoint d'aide pour générer une signature (développement uniquement)"""
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({"error": "JSON data required"}), 400
-    
-    method = data.get('method', 'GET').upper()
-    path = data.get('path', '/')
-    body = data.get('body', '')
-    timestamp = data.get('timestamp', str(int(time.time())))
-    
-    signature = generate_signature(method, path, timestamp, body)
-    
-    return jsonify({
-        "signature": signature,
-        "headers": {
-            "X-Client-ID": CLIENT_ID,
-            "X-Timestamp": timestamp,
-            "X-Signature": signature
-        },
-        "string_to_sign": f"{method}\n{path}\n{timestamp}\n{body}",
-        "expires_in": SIGNATURE_VALIDITY_SECONDS
-    })
 
 # PATIENTS ENDPOINTS
 @app.route('/patients', methods=['GET'])
@@ -224,7 +209,7 @@ def create_patient():
     """Créer un nouveau patient"""
     data = request.get_json()
     
-    required_fields = ["first_name", "last_name", "birth_date", "phone"]
+    required_fields = ["first_name", "last_name", "birthdate", "phone_number"]
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
@@ -233,10 +218,9 @@ def create_patient():
         "id": f"pat_{uuid.uuid4().hex[:8]}",
         "first_name": data["first_name"],
         "last_name": data["last_name"], 
-        "birth_date": data["birth_date"],
-        "phone": data["phone"],
+        "birthdate": data["birthdate"],
+        "phone_number": data["phone_number"],
         "email": data.get("email", ""),
-        "address": data.get("address", ""),
         "created_at": datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
     }
     
@@ -291,10 +275,8 @@ def create_appointment():
         "doctor_name": data["doctor_name"],
         "appointment_date": data["appointment_date"],
         "appointment_time": data["appointment_time"],
-        "duration_minutes": data.get("duration_minutes", 30),
-        "type": data.get("type", "consultation"),
-        "status": data.get("status", "scheduled"),
-        "notes": data.get("notes", ""),
+        "duration": data.get("duration", 30),
+        "reason": data.get("reason", ""),
         "created_at": datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
     }
     
@@ -313,13 +295,35 @@ def update_appointment(appointment_id):
     
     # Mettre à jour les champs fournis
     updatable_fields = ["doctor_name", "appointment_date", "appointment_time", 
-                       "duration_minutes", "type", "status", "notes"]
+                       "duration", "reason"]
     
     for field in updatable_fields:
         if field in data:
             appointment[field] = data[field]
     
     return jsonify(appointment)
+
+# AVAILABILITIES ENDPOINTS
+@app.route('/availabilities', methods=['GET'])
+@require_hmac_auth
+def get_availabilities():
+    """Récupérer les disponibilités"""
+    # Filtrage optionnel par date ou docteur
+    date_filter = request.args.get('date')
+    doctor_filter = request.args.get('doctor_name')
+    
+    filtered_availabilities = availabilities
+    
+    if date_filter:
+        filtered_availabilities = [av for av in filtered_availabilities if av["date"] == date_filter]
+    
+    if doctor_filter:
+        filtered_availabilities = [av for av in filtered_availabilities if av["doctor_name"] == doctor_filter]
+    
+    return jsonify({
+        "availabilities": filtered_availabilities,
+        "total": len(filtered_availabilities)
+    })
 
 if __name__ == '__main__':
     import os
@@ -332,5 +336,5 @@ if __name__ == '__main__':
     print("📚 Test data loaded:")
     print(f"   - {len(patients)} patients")
     print(f"   - {len(appointments)} appointments")
-    print("🔧 Use /auth/signature-helper to generate signatures")
+    print(f"   - {len(availabilities)} availabilities")
     app.run(debug=False, port=port, host='0.0.0.0')

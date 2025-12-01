@@ -41,97 +41,83 @@ test_patients_data = [
     {
         "id": "hcp-patient-001",
         "patient_number": "HCP001",
-        "first_name": "Pierre",
-        "last_name": "Dubois",
-        "middle_name": "Michel",
+        "full_name": "Pierre Michel Dubois",
         "email": "pierre.dubois@email.com",
-        "phone": "+33145678901",
-        "gender": "male",
-        "birth_date": "08.11.1978",
-        "address": {
-            "street": "789 Boulevard de l'Hôpital",
-            "city": "Marseille",
-            "postal_code": "13001",
-            "country": "FR"
-        },
-        "emergency_contact": {
-            "name": "Marie Dubois",
-            "phone": "+33145678902",
-            "relationship": "spouse"
-        },
-        "active": True,
-        "created_at": "Mon, 15 Jan 2024 10:30:00 GMT",
-        "updated_at": "Mon, 15 Jan 2024 10:30:00 GMT"
+        "contact_phone": "+33145678901",
+        "date_of_birth": "08/11/1978",
+        "gender": "M",
+        "street_address": "789 Boulevard de l'Hôpital",
+        "city": "Marseille",
+        "postal_code": "13001",
+        "registered_date": "Mon, 15 Jan 2024 10:30:00 GMT"
     },
     {
         "id": "hcp-patient-002",
         "patient_number": "HCP002",
-        "first_name": "Sophie",
-        "last_name": "Leroy",
-        "middle_name": "Anne",
+        "full_name": "Sophie Anne Leroy",
         "email": "sophie.leroy@email.com",
-        "phone": "+33156789012",
-        "gender": "female",
-        "birth_date": "14.05.1990",
-        "address": {
-            "street": "321 Rue des Soins",
-            "city": "Toulouse",
-            "postal_code": "31000",
-            "country": "FR"
-        },
-        "emergency_contact": None,
-        "active": True,
-        "created_at": "Mon, 22 Jan 2024 09:15:00 GMT",
-        "updated_at": "Mon, 22 Jan 2024 09:15:00 GMT"
+        "contact_phone": "+33156789012",
+        "date_of_birth": "14/05/1990",
+        "gender": "F",
+        "street_address": "321 Rue des Soins",
+        "city": "Toulouse",
+        "postal_code": "31000",
+        "registered_date": "Mon, 22 Jan 2024 09:15:00 GMT"
     }
 ]
 
 test_appointments_data = [
     {
-        "id": "hcp-appointment-001",
+        "appointment_id": "hcp-appointment-001",
         "patient_id": "hcp-patient-001",
-        "patient_name": "Pierre Michel Dubois",
-        "doctor_id": "dr-garcia",
-        "doctor_name": "Dr. Elena Garcia",
-        "appointment_type": "routine",
-        "service_category": "General Practice",
-        "service_type": "Consultation",
-        "status": "booked",
-        "priority": "normal",
-        "description": "Consultation de suivi médical général",
-        "start_time": "22 Mar 2024, 10:00",
-        "end_time": "22 Mar 2024, 10:30",
-        "duration_minutes": 30,
-        "reason": "Encounter for check up",
-        "notes": "",
-        "created_at": "Mon, 15 Jan 2024 11:30:00 GMT",
-        "updated_at": "Mon, 15 Jan 2024 11:30:00 GMT"
+        "practitioner": "Dr. Elena Garcia",
+        "datetime": "2024-03-22T10:00:00",
+        "length_minutes": 30,
+        "type": "checkup",
+        "notes": "Consultation de suivi médical général",
+        "created": "Mon, 15 Jan 2024 11:30:00 GMT"
     },
     {
-        "id": "hcp-appointment-002",
+        "appointment_id": "hcp-appointment-002",
         "patient_id": "hcp-patient-002",
-        "patient_name": "Sophie Anne Leroy",
-        "doctor_id": "dr-bernard",
-        "doctor_name": "Dr. Thomas Bernard",
-        "appointment_type": "followup",
-        "service_category": "Cardiology",
-        "service_type": "Echocardiography",
-        "status": "confirmed",
-        "priority": "high",
-        "description": "Échocardiographie de contrôle post-opératoire",
-        "start_time": "28 Mar 2024, 14:15",
-        "end_time": "28 Mar 2024, 15:00",
-        "duration_minutes": 45,
-        "reason": "Post-operative follow-up",
-        "notes": "Post-surgical cardiac monitoring",
-        "created_at": "Mon, 22 Jan 2024 14:45:00 GMT",
-        "updated_at": "Mon, 22 Jan 2024 14:45:00 GMT"
+        "practitioner": "Dr. Thomas Bernard",
+        "datetime": "2024-03-28T14:15:00",
+        "length_minutes": 45,
+        "type": "followup",
+        "notes": "Échocardiographie de contrôle post-opératoire",
+        "created": "Mon, 22 Jan 2024 14:45:00 GMT"
+    }
+]
+
+# Données de disponibilités
+test_availabilities_data = [
+    {
+        "availability_id": "av_001",
+        "practitioner": "Dr. Elena Garcia",
+        "day": "2024-03-22",
+        "time_slots": [
+            {"time": "10:00:00", "available": True},
+            {"time": "10:30:00", "available": False},
+            {"time": "11:00:00", "available": True},
+            {"time": "14:00:00", "available": True}
+        ]
+    },
+    {
+        "availability_id": "av_002",
+        "practitioner": "Dr. Thomas Bernard",
+        "day": "2024-03-28",
+        "time_slots": [
+            {"time": "09:00:00", "available": True},
+            {"time": "14:15:00", "available": False},
+            {"time": "15:00:00", "available": True}
+        ]
     }
 ]
 
 # Initialiser avec les données de test
 patients_db.extend(test_patients_data)
 appointments_db.extend(test_appointments_data)
+availabilities_db = list(test_availabilities_data)
 
 def generate_tokens(user_id="healthcare_user", scopes=None):
     """Générer un access token et un refresh token"""
@@ -351,8 +337,7 @@ def get_patients():
     if search:
         filtered_patients = [
             p for p in filtered_patients 
-            if search in p.get('first_name', '').lower() 
-            or search in p.get('last_name', '').lower()
+            if search in p.get('full_name', '').lower() 
             or search in p.get('patient_number', '').lower()
         ]
     
@@ -366,22 +351,6 @@ def get_patients():
         "timestamp": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     })
 
-@app.route('/api/patients/<patient_id>', methods=['GET'])
-@require_jwt_auth(['read:patients'])
-def get_patient(patient_id):
-    """Récupérer un patient spécifique"""
-    patient = next((p for p in patients_db if p["id"] == patient_id), None)
-    if not patient:
-        return jsonify({
-            "success": False,
-            "error": "Patient not found",
-            "message": f"Patient with id '{patient_id}' not found"
-        }), 404
-    
-    return jsonify({
-        "success": True,
-        "data": patient
-    })
 
 @app.route('/api/patients', methods=['POST'])
 @require_jwt_auth(['write:patients'])
@@ -397,7 +366,7 @@ def create_patient():
         }), 400
     
     # Validation des champs requis
-    required_fields = ['first_name', 'last_name', 'email', 'birth_date']
+    required_fields = ['full_name', 'email', 'date_of_birth']
     missing_fields = [field for field in required_fields if not data.get(field)]
     
     if missing_fields:
@@ -411,18 +380,15 @@ def create_patient():
     new_patient = {
         "id": f"hcp-patient-{str(uuid.uuid4())[:8]}",
         "patient_number": f"HCP{len(patients_db) + 1:03d}",
-        "first_name": data.get('first_name'),
-        "last_name": data.get('last_name'),
-        "middle_name": data.get('middle_name', ''),
+        "full_name": data.get('full_name'),
         "email": data.get('email'),
-        "phone": data.get('phone', ''),
+        "contact_phone": data.get('contact_phone', ''),
         "gender": data.get('gender', ''),
-        "birth_date": data.get('birth_date'),
-        "address": data.get('address', {}),
-        "emergency_contact": data.get('emergency_contact'),
-        "active": data.get('active', True),
-        "created_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"),
-        "updated_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
+        "date_of_birth": data.get('date_of_birth'),
+        "street_address": data.get('street_address', ''),
+        "city": data.get('city', ''),
+        "postal_code": data.get('postal_code', ''),
+        "registered_date": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     }
     
     patients_db.append(new_patient)
@@ -433,42 +399,6 @@ def create_patient():
         "message": "Patient created successfully"
     }), 201
 
-@app.route('/api/patients/<patient_id>', methods=['PUT'])
-@require_jwt_auth(['write:patients'])
-def update_patient(patient_id):
-    """Mettre à jour un patient"""
-    patient = next((p for p in patients_db if p["id"] == patient_id), None)
-    if not patient:
-        return jsonify({
-            "success": False,
-            "error": "Patient not found"
-        }), 404
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({
-            "success": False,
-            "error": "Invalid request",
-            "message": "JSON data required"
-        }), 400
-    
-    # Mettre à jour les champs
-    updatable_fields = [
-        'first_name', 'last_name', 'middle_name', 'email', 'phone', 
-        'gender', 'birth_date', 'address', 'emergency_contact', 'active'
-    ]
-    
-    for field in updatable_fields:
-        if field in data:
-            patient[field] = data[field]
-    
-    patient['updated_at'] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
-    
-    return jsonify({
-        "success": True,
-        "data": patient,
-        "message": "Patient updated successfully"
-    })
 
 # APPOINTMENTS ENDPOINTS (REST API)
 @app.route('/api/appointments', methods=['GET'])
@@ -486,25 +416,13 @@ def get_appointments():
     if date_filter:
         filtered_appointments = [
             apt for apt in filtered_appointments 
-            if apt["start_time"].startswith(date_filter)
-        ]
-    
-    if status_filter:
-        filtered_appointments = [
-            apt for apt in filtered_appointments 
-            if apt["status"] == status_filter
+            if apt["datetime"].startswith(date_filter)
         ]
     
     if patient_id:
         filtered_appointments = [
             apt for apt in filtered_appointments 
             if apt["patient_id"] == patient_id
-        ]
-    
-    if doctor_id:
-        filtered_appointments = [
-            apt for apt in filtered_appointments 
-            if apt["doctor_id"] == doctor_id
         ]
     
     return jsonify({
@@ -518,7 +436,7 @@ def get_appointments():
 @require_jwt_auth(['read:appointments'])
 def get_appointment(appointment_id):
     """Récupérer un rendez-vous spécifique"""
-    appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
+    appointment = next((a for a in appointments_db if a["appointment_id"] == appointment_id), None)
     if not appointment:
         return jsonify({
             "success": False,
@@ -545,7 +463,7 @@ def create_appointment():
         }), 400
     
     # Validation des champs requis
-    required_fields = ['patient_id', 'doctor_id', 'start_time', 'end_time', 'description']
+    required_fields = ['patient_id', 'practitioner', 'datetime', 'length_minutes']
     missing_fields = [field for field in required_fields if not data.get(field)]
     
     if missing_fields:
@@ -565,24 +483,14 @@ def create_appointment():
     
     # Créer le nouveau rendez-vous
     new_appointment = {
-        "id": f"hcp-appointment-{str(uuid.uuid4())[:8]}",
+        "appointment_id": f"hcp-appointment-{str(uuid.uuid4())[:8]}",
         "patient_id": data.get('patient_id'),
-        "patient_name": f"{patient['first_name']} {patient['last_name']}",
-        "doctor_id": data.get('doctor_id'),
-        "doctor_name": data.get('doctor_name', f"Dr. {data.get('doctor_id')}"),
-        "appointment_type": data.get('appointment_type', 'routine'),
-        "service_category": data.get('service_category', 'General Practice'),
-        "service_type": data.get('service_type', 'Consultation'),
-        "status": data.get('status', 'booked'),
-        "priority": data.get('priority', 'normal'),
-        "description": data.get('description'),
-        "start_time": data.get('start_time'),
-        "end_time": data.get('end_time'),
-        "duration_minutes": data.get('duration_minutes', 30),
-        "reason": data.get('reason', ''),
+        "practitioner": data.get('practitioner'),
+        "datetime": data.get('datetime'),
+        "length_minutes": data.get('length_minutes'),
+        "type": data.get('type', 'checkup'),
         "notes": data.get('notes', ''),
-        "created_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"),
-        "updated_at": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
+        "created": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     }
     
     appointments_db.append(new_appointment)
@@ -597,7 +505,7 @@ def create_appointment():
 @require_jwt_auth(['write:appointments'])
 def update_appointment(appointment_id):
     """Mettre à jour un rendez-vous"""
-    appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
+    appointment = next((a for a in appointments_db if a["appointment_id"] == appointment_id), None)
     if not appointment:
         return jsonify({
             "success": False,
@@ -613,17 +521,11 @@ def update_appointment(appointment_id):
         }), 400
     
     # Mettre à jour les champs
-    updatable_fields = [
-        'doctor_id', 'doctor_name', 'appointment_type', 'service_category', 
-        'service_type', 'status', 'priority', 'description', 'start_time', 
-        'end_time', 'duration_minutes', 'reason', 'notes'
-    ]
+    updatable_fields = ['practitioner', 'datetime', 'length_minutes', 'type', 'notes']
     
     for field in updatable_fields:
         if field in data:
             appointment[field] = data[field]
-    
-    appointment['updated_at'] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     
     return jsonify({
         "success": True,
@@ -635,7 +537,7 @@ def update_appointment(appointment_id):
 @require_jwt_auth(['write:appointments'])
 def delete_appointment(appointment_id):
     """Supprimer un rendez-vous"""
-    appointment = next((a for a in appointments_db if a["id"] == appointment_id), None)
+    appointment = next((a for a in appointments_db if a["appointment_id"] == appointment_id), None)
     if not appointment:
         return jsonify({
             "success": False,
@@ -647,6 +549,30 @@ def delete_appointment(appointment_id):
     return jsonify({
         "success": True,
         "message": "Appointment deleted successfully"
+    })
+
+# AVAILABILITIES ENDPOINTS
+@app.route('/api/availabilities', methods=['GET'])
+@require_jwt_auth(['read:appointments'])
+def get_availabilities():
+    """Récupérer les disponibilités"""
+    # Filtrage optionnel par date ou praticien
+    day_filter = request.args.get('day')
+    practitioner_filter = request.args.get('practitioner')
+    
+    filtered_availabilities = availabilities_db
+    
+    if day_filter:
+        filtered_availabilities = [av for av in filtered_availabilities if av["day"] == day_filter]
+    
+    if practitioner_filter:
+        filtered_availabilities = [av for av in filtered_availabilities if av["practitioner"] == practitioner_filter]
+    
+    return jsonify({
+        "success": True,
+        "data": filtered_availabilities,
+        "total": len(filtered_availabilities),
+        "timestamp": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     })
 
 # ENDPOINT HL7 SIMULÉ
@@ -707,6 +633,7 @@ if __name__ == '__main__':
     print("📚 Test data loaded:")
     print(f"   - {len(patients_db)} patients (REST format)")
     print(f"   - {len(appointments_db)} appointments (REST format)")
+    print(f"   - {len(availabilities_db)} availabilities (REST format)")
     print("🔑 Available scopes:")
     print("   - read:patients, write:patients")
     print("   - read:appointments, write:appointments")
@@ -716,8 +643,8 @@ if __name__ == '__main__':
     print(f"   - Refresh tokens: {REFRESH_TOKEN_EXPIRE_DAYS} days")
     print("🌐 REST API endpoints:")
     print("   - GET/POST /api/patients")
-    print("   - GET/PUT /api/patients/<id>")
     print("   - GET/POST/PUT/DELETE /api/appointments")
+    print("   - GET /api/availabilities")
     print("🔗 HL7 endpoints:")
     print("   - POST /hl7/ADT (ADT messages)")
     print("   - GET /hl7/sample (sample message)")
