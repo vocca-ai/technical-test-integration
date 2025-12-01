@@ -122,7 +122,7 @@ availabilities_db = list(test_availabilities_data)
 def generate_tokens(user_id="healthcare_user", scopes=None):
     """Générer un access token et un refresh token"""
     if scopes is None:
-        scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process']
+        scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process', 'write:tokens']
     
     now = datetime.utcnow()
     
@@ -238,7 +238,7 @@ def get_token():
         if data.get('client_id') == 'healthcare_pro_client' and data.get('client_secret') == 'healthcare_secret_2024':
             # Scopes personnalisés selon le client
             requested_scopes = data.get('scope', '').split()
-            available_scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process']
+            available_scopes = ['read:patients', 'write:patients', 'read:appointments', 'write:appointments', 'hl7:process', 'write:tokens']
             granted_scopes = [scope for scope in requested_scopes if scope in available_scopes] or available_scopes
             
             access_token, refresh_token = generate_tokens(scopes=granted_scopes)
@@ -637,7 +637,7 @@ if __name__ == '__main__':
     print("🔑 Available scopes:")
     print("   - read:patients, write:patients")
     print("   - read:appointments, write:appointments")
-    print("   - hl7:process")
+    print("   - hl7:process, write:tokens")
     print("⏱️  Token lifetimes:")
     print(f"   - Access tokens: {ACCESS_TOKEN_EXPIRE_SECONDS} seconds")
     print(f"   - Refresh tokens: {REFRESH_TOKEN_EXPIRE_DAYS} days")

@@ -27,6 +27,7 @@ info:
     - `read:appointments` : Lecture des rendez-vous
     - `write:appointments` : Gestion des rendez-vous
     - `hl7:process` : Traitement des messages HL7
+    - `write:tokens` : Révocation de tokens
 
   version: 2.2.0
   contact:
@@ -129,7 +130,7 @@ paths:
       tags:
         - Authentication
       security:
-        - BearerAuth: []
+        - BearerAuth: [write:tokens]
       requestBody:
         required: true
         content:
@@ -248,7 +249,7 @@ paths:
           description: Filtrer par date (format YYYY-MM-DD)
           schema:
             type: string
-            pattern: "^\\d{2}\\.\\d{2}\\.\\d{4}$"
+            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
             example: 2024-03-22
         - name: status
           in: query
@@ -488,7 +489,7 @@ paths:
       tags:
         - HL7 Integration
       security:
-        - BearerAuth: []
+        - BearerAuth: [hl7:process]
       requestBody:
         required: true
         content:
@@ -566,6 +567,7 @@ components:
         - read:appointments: Lecture des rendez-vous
         - write:appointments: Gestion des rendez-vous
         - hl7:process: Traitement des messages HL7
+        - write:tokens: Révocation de tokens
 
   responses:
     UnauthorizedError:
@@ -637,7 +639,7 @@ components:
         expires_in:
           type: integer
           description: Durée de validité de l'access token en secondes
-          example: 900
+          example: 10
         refresh_expires_in:
           type: integer
           description: Durée de validité du refresh token en secondes
